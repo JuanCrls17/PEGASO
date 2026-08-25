@@ -515,7 +515,8 @@ function construirInfoCompacto(props, variable, isImc, punto) {
 
   const ubica = ref ? `${ref.etiqueta}: ${ref.valor}` : "";
 
-  return `<div class="ic-cabecera">
+  return `<button class="ic-manija" id="icManija" aria-label="Extender la ficha"></button>
+          <div class="ic-cabecera">
             <span class="ic-lugar">${distrito}</span>
             ${ubica ? `<span class="ic-ubica">${ubica}</span>` : ""}
           </div>
@@ -555,7 +556,11 @@ function marcarSeleccion(punto) {
   marcadorSeleccion = L.marker(punto, {
     icon: L.divIcon({
       className: "pin-seleccion",
-      html: '<span class="pin-cuerpo"></span><span class="pin-base"></span>',
+      html: '<span class="pin-wrap">' +
+            '<svg viewBox="0 0 24 34" width="24" height="34" aria-hidden="true">' +
+            '<path d="M12 1.6c5.2 0 9.4 4.2 9.4 9.4 0 6.9-9.4 21.4-9.4 21.4S2.6 17.9 2.6 11c0-5.2 4.2-9.4 9.4-9.4z" ' +
+            'fill="#2f7fe0" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>' +
+            '<circle cx="12" cy="11" r="3.7" fill="#ffffff"/></svg></span>',
       iconSize: [24, 34],
       iconAnchor: [12, 34],
     }),
@@ -604,11 +609,17 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
       .setContent(`<div class="info-popup-head">Información del punto</div>
                    <div class="info-popup-body">${html}</div>`)
       .openOn(map);
+    // La leyenda se pliega si el globo se le viene encima
+    setTimeout(() => {
+      const globo = document.querySelector(".info-popup");
+      if (globo) evitarChoqueConLeyenda(globo);
+    }, 60);
     return;
   }
 
   if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
   const enTelefono = window.innerWidth <= 768;
+  document.getElementById("infoPanel").classList.remove("extendida");
   document.getElementById("infoPanelBody").innerHTML =
     enTelefono ? construirInfoCompacto(props, variable, isImc, punto) : html;
   const panel = document.getElementById("infoPanel");
@@ -621,14 +632,22 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
   }
   panel.style.display = "block";
   evitarChoqueConLeyenda(panel);
+
+  const manija = document.getElementById("icManija");
+  if (manija) {
+    manija.addEventListener("click", () => {
+      const extendida = panel.classList.toggle("extendida");
+      manija.setAttribute("aria-label", extendida ? "Reducir la ficha" : "Extender la ficha");
+    });
+  }
 }
 
 // Si el panel y la leyenda se disputan el mismo espacio, la leyenda se
 // pliega: la información consultada nunca debe quedar tapada.
-function evitarChoqueConLeyenda(panel) {
+function evitarChoqueConLeyenda(elemento) {
   const leyenda = document.getElementById("mapLegend");
   if (!leyenda || leyenda.classList.contains("collapsed")) return;
-  const a = panel.getBoundingClientRect();
+  const a = elemento.getBoundingClientRect();
   const b = leyenda.getBoundingClientRect();
   const chocan = !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
   if (chocan) {

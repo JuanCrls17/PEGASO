@@ -553,7 +553,7 @@ html, body {
   left: 16px;
   z-index: 950;
   width: 288px;
-  border-radius: 5px;
+  border-radius: 18px;
   box-shadow:
     0 8px 32px rgba(0,20,70,0.22),
     0 2px 8px rgba(0,0,0,0.12),
@@ -957,11 +957,11 @@ html, body {
 .map-zoom-ctrl button {
   width: 34px;
   height: 34px;
-  background: rgba(255,255,255,0.85);
+  background: rgba(228,236,246,0.86);
   backdrop-filter: blur(12px) saturate(150%);
   -webkit-backdrop-filter: blur(12px) saturate(150%);
   border: 1px solid var(--gris-borde);
-  border-radius: 7px;
+  border-radius: 12px;
   font-size: 1.2rem;
   font-weight: 700;
   cursor: pointer;
@@ -1031,9 +1031,11 @@ html, body {
    Sale del territorio seleccionado, con la punta apuntándolo.
    ========================================================= */
 .info-popup .leaflet-popup-content-wrapper {
-  background: var(--blanco);
-  border-radius: 12px;
-  border: 1px solid var(--gris-borde);
+  background: rgba(224,232,243,0.86);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-radius: 22px;
+  border: 1px solid rgba(154,175,204,0.55);
   box-shadow: 0 10px 34px rgba(0,20,70,0.26), 0 2px 8px rgba(0,0,0,0.12);
   padding: 0;
   overflow: hidden;
@@ -1051,43 +1053,19 @@ html, body {
 /* Con el mapa inclinado, el globo se endereza para resultar legible;
    su punta continúa apuntando al territorio seleccionado. */
 /* Indicador clavado en el territorio del que provienen los datos.
-   Se mantiene vertical aunque el mapa esté inclinado. */
-.pin-seleccion {
-  pointer-events: none;
+   La inclinación se aplica al envoltorio, no al elemento que Leaflet
+   posiciona, para no descolocar el marcador. */
+.pin-seleccion { pointer-events: none; }
+
+.pin-wrap {
+  display: block;
   transform-origin: bottom center;
+  filter: drop-shadow(0 3px 5px rgba(8,20,45,0.45));
 }
 
-.map-container.relieve .pin-seleccion { transform: rotateX(-52deg); }
+.map-container.relieve .pin-wrap { transform: rotateX(-52deg); }
 
-.pin-cuerpo {
-  position: absolute;
-  left: 3px;
-  top: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50% 50% 50% 0;
-  transform: rotate(-45deg);
-  background: linear-gradient(135deg, #2f7fe0, #14509e);
-  border: 2px solid #ffffff;
-  box-shadow: 0 3px 10px rgba(8,20,45,0.45);
-}
-
-.pin-cuerpo::after {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-  background: #ffffff;
-}
-
-.pin-base {
-  position: absolute;
-  left: 11px;
-  top: 17px;
-  width: 2px;
-  height: 17px;
-  background: linear-gradient(180deg, #14509e, rgba(20,80,158,0.25));
-}
+.pin-wrap svg { display: block; }
 
 /* Señal de selección: anillos que se expanden sobre el territorio elegido */
 .pulso-seleccion { pointer-events: none; }
@@ -1175,18 +1153,34 @@ html, body {
   font-size: 0.8rem;
 }
 
-/* Manija superior, como en las hojas deslizables */
-.map-info-panel.compacto::before {
+/* Manija superior: además de indicar la hoja, la extiende al pulsarla */
+.ic-manija {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 22px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  z-index: 2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ic-manija::before {
   content: "";
   position: absolute;
-  top: 7px;
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 36px;
+  width: 38px;
   height: 4px;
   border-radius: 2px;
-  background: #d7dee8;
+  background: #b6c2d4;
+  transition: background 0.18s ease, width 0.18s ease;
 }
+
+.ic-manija:active::before { background: #8b9bb4; width: 46px; }
 
 .map-info-panel.compacto .info-panel-body {
   padding: 20px 16px calc(14px + env(safe-area-inset-bottom)) 16px;
@@ -1249,8 +1243,8 @@ html, body {
   color: #3c4757;
   background: #f2f6fb;
   border-left: 3px solid var(--azul);
-  border-radius: 0 6px 6px 0;
-  padding: 7px 9px;
+  border-radius: 0 10px 10px 0;
+  padding: 8px 11px;
   margin-top: 9px;
 }
 
@@ -1265,11 +1259,12 @@ html, body {
   top: 200px;
   left: 16px;
   z-index: 940;
-  border-radius: 12px;
-  background: var(--blanco);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--gris-borde);
+  border-radius: 22px;
+  background: rgba(224,232,243,0.86);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 10px 34px rgba(0,20,70,0.26), 0 2px 8px rgba(0,0,0,0.12);
+  border: 1px solid rgba(154,175,204,0.55);
   min-width: 260px;
   max-width: 320px;
   overflow: hidden;
@@ -1316,7 +1311,7 @@ html, body {
   justify-content: space-between;
   align-items: flex-start;
   padding: 5px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(154,175,204,0.32);
   gap: 10px;
 }
 
@@ -1346,6 +1341,7 @@ html, body {
 
 /* Barra visual de valor climático */
 .info-value-bar-wrap {
+  border-radius: 12px;
   margin: 8px 0 4px;
   padding: 8px 10px;
   background: #f5f7fc;
@@ -1363,6 +1359,7 @@ html, body {
   letter-spacing: 0.3px;
 }
 .info-value-bar-track {
+  background: rgba(160,180,206,0.30);
   height: 8px;
   border-radius: 4px;
   background: #dde3ee;
@@ -1462,8 +1459,9 @@ html, body {
   position: absolute;
   bottom: 20px;
   left: 16px;
+  border-radius: 16px;
   z-index: 900;
-  background: rgba(255,255,255,0.80);
+  background: rgba(226,234,244,0.82);
   backdrop-filter: blur(14px) saturate(150%);
   -webkit-backdrop-filter: blur(14px) saturate(150%);
   border: 1px solid var(--gris-borde);
@@ -1611,14 +1609,13 @@ html, body {
 }
 
 .leaflet-popup-content-wrapper {
-  border-radius: var(--radius) !important;
-  box-shadow: var(--shadow-md) !important;
-  font-family: 'Inter', sans-serif !important;
+  box-shadow: var(--shadow-md);
+  font-family: 'Inter', sans-serif;
 }
 
 /* La punta del globo se conserva: señala el territorio consultado */
 .leaflet-popup-tip {
-  background: rgba(255,255,255,0.88);
+  background: rgba(224,232,243,0.86);
   box-shadow: 0 3px 12px rgba(0,20,70,0.18);
 }
 
@@ -1960,14 +1957,14 @@ body.no-scroll { overflow: hidden; }
   /* ── Panel de información como hoja inferior ── */
   .map-info-panel {
     top: auto;
-    bottom: 0;
+    bottom: var(--footer-h);
     left: 0;
     right: 0;
     max-width: none;
     min-width: 0;
-    border-radius: 16px 16px 0 0;
+    border-radius: 24px 24px 0 0;
     border-bottom: none;
-    max-height: 38vh;
+    max-height: 40vh;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
     box-shadow: 0 -6px 28px rgba(0,20,70,0.28);
@@ -1991,7 +1988,8 @@ body.no-scroll { overflow: hidden; }
   .info-row { padding: 4px 0; gap: 12px; }
   .info-key { font-size: 0.62rem; letter-spacing: 0.2px; }
   .info-val { font-size: 0.72rem; }
-  .info-value-bar-wrap { margin-top: 8px; }
+  .info-value-bar-wrap {
+  border-radius: 12px; margin-top: 8px; }
   .info-value-bar-label { font-size: 0.58rem; }
   .info-interpret { font-size: 0.66rem; padding: 8px 10px; }
 
@@ -2008,6 +2006,9 @@ body.no-scroll { overflow: hidden; }
 
   .footer-left { font-size: 0.5rem; }
 
+  /* La ficha puede extenderse para leer todo el contenido */
+  .map-info-panel.extendida { max-height: 76vh; }
+
   /* ── Leyenda compacta ── */
   .map-legend {
     bottom: 10px;
@@ -2018,14 +2019,13 @@ body.no-scroll { overflow: hidden; }
   }
 
   /* ── Los flotantes se atenúan mientras se explora el mapa ── */
-  .map-search-float,
   .map-legend,
-  .map-info-panel,
   .search-fab { transition: opacity 0.3s ease; }
 
-  body.map-interacting .map-search-float,
+  /* Solo se atenúa lo que está de forma permanente sobre el mapa.
+     Lo que la persona abrió a propósito —el buscador desplegado y la
+     ficha del punto— permanece legible mientras explora. */
   body.map-interacting .map-legend,
-  body.map-interacting .map-info-panel,
   body.map-interacting .search-fab {
     opacity: 0.15;
     transition: opacity 0.18s ease;
