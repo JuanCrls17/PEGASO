@@ -31,3 +31,6 @@ Thumbs.db
 # ── Logs y temporales ──
 *.log
 *.tmp
+
+# ── Empaquetados / respaldos ──
+*.zip

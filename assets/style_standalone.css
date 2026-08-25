@@ -1,5 +1,5 @@
 /* =========================================================
-   SENAMHI PERÚ — Estilos standalone (index.html)
+   PEGASO — Estilos standalone (index.html)
    ========================================================= */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -144,19 +144,16 @@ html, body {
   flex: 1;
 }
 
-.navbar-title {
-  color: var(--blanco);
+/* Acrónimo de la plataforma: PEGASO */
+.navbar-acronym {
   font-family: 'Montserrat', sans-serif;
-  font-size: 1.28rem;
+  font-size: 2rem;
   font-weight: 800;
-  letter-spacing: 0.6px;
-  line-height: 1.15;
-  text-transform: uppercase;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.5), 0 0 40px rgba(100,160,255,0.2);
-  animation: titleReveal 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both;
+  letter-spacing: 3px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5), 0 0 40px rgba(100,160,255,0.25);
   background: linear-gradient(90deg, #ffffff 0%, #c8deff 50%, #ffffff 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
@@ -164,6 +161,21 @@ html, body {
   background-clip: text;
   animation: titleReveal 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both,
              shimmer 6s linear 1.5s infinite;
+}
+
+.navbar-title {
+  color: rgba(255,255,255,0.94);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  line-height: 1.25;
+  text-transform: uppercase;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  text-shadow: 0 1px 8px rgba(0,0,0,0.45);
+  animation: titleReveal 0.7s cubic-bezier(0.22,1,0.36,1) 0.25s both;
 }
 
 .navbar-subtitle {
@@ -1258,6 +1270,8 @@ html, body {
 
   .navbar-subtitle { display: none; }
   .navbar-logo-minam { display: none; }
+  .navbar-title { display: none; }
+  .navbar-acronym { font-size: 1.6rem; letter-spacing: 2px; }
 
   .footer-right { display: none; }
 }

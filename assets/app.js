@@ -1,5 +1,5 @@
 /* =========================================================
-   app.js — SENAMHI PERÚ · Escenarios Climáticos
+   app.js — PEGASO · SENAMHI · Escenarios de Cambio Climático
    Leaflet standalone, sin Streamlit
    ========================================================= */
 "use strict";
