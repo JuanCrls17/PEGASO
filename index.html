@@ -37,11 +37,11 @@
     <div class="navbar-brand">
       <img src="assets/logo_senamhi.png" alt="SENAMHI" class="navbar-logo" />
       <div class="navbar-divider"></div>
-      <img src="assets/Minam.png" alt="MINAM" class="navbar-logo-minam" />
-      <div class="navbar-divider"></div>
       <div class="brand-mark">
         <span class="brand-name" aria-label="PEGASO">PEG<svg class="brand-a" viewBox="0 0 72 70" aria-hidden="true"><path d="M0 70 27 0h18l27 70H55L36 18 17 70Z"/></svg>SO</span>
       </div>
+      <div class="navbar-divider"></div>
+      <img src="assets/Minam.png" alt="MINAM" class="navbar-logo-minam" />
       <div class="navbar-divider"></div>
       <div class="navbar-titles">
         <span class="navbar-title">Plataforma de Escenarios de Cambio Climático para la Gestión y la Adaptación en los Servicios Sectoriales</span>
@@ -297,6 +297,12 @@
       <div class="map-zoom-ctrl" id="zoomCtrl">
         <button id="zoomIn"  title="Acercar">+</button>
         <button id="zoomOut" title="Alejar">−</button>
+        <button id="btnPantalla" class="btn-pantalla" title="Pantalla completa" aria-pressed="false">
+          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path class="icono-expandir" d="M7.4 2.6H2.6v4.8M12.6 2.6h4.8v4.8M17.4 12.6v4.8h-4.8M7.4 17.4H2.6v-4.8"/>
+            <path class="icono-contraer" d="M2.6 7.4h4.8V2.6M17.4 7.4h-4.8V2.6M12.6 17.4v-4.8h4.8M7.4 17.4v-4.8H2.6" style="display:none"/>
+          </svg>
+        </button>
         <button id="btnRelieve" class="btn-relieve" title="Vista en relieve" aria-pressed="false">
           <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M2.4 11.6 10 7.9l7.6 3.7L10 15.3z"/>

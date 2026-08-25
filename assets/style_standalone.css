@@ -980,6 +980,20 @@ html, body {
   color: var(--azul);
 }
 
+/* Botón de pantalla completa */
+.btn-pantalla {
+  margin-top: 6px;
+  color: var(--gris-txt) !important;
+}
+
+.btn-pantalla svg { width: 17px; height: 17px; }
+
+.btn-pantalla.active {
+  background: var(--azul) !important;
+  border-color: var(--azul) !important;
+  color: var(--blanco) !important;
+}
+
 /* Botón de relieve: separado del zoom por un espacio discreto */
 .btn-relieve {
   margin-top: 6px;
@@ -1901,7 +1915,7 @@ body.no-scroll { overflow: hidden; }
 
   .navbar-brand { gap: 8px; }
   .navbar-logo { height: 34px; padding: 3px 5px; }
-  .navbar-logo-minam { display: none; }
+  .navbar-logo-minam { height: 26px; }
   .navbar-divider { display: none; }
   .navbar-title { display: none; }
   .navbar-subtitle { display: none; }
@@ -2018,7 +2032,8 @@ body.no-scroll { overflow: hidden; }
   .info-interpret { font-size: 0.66rem; padding: 8px 10px; }
 
   .map-zoom-ctrl button { width: 36px; height: 36px; font-size: 1.15rem; }
-  .btn-relieve svg { width: 15px; height: 15px; }
+  .btn-relieve svg,
+  .btn-pantalla svg { width: 15px; height: 15px; }
 
   .section-label { font-size: 0.62rem; }
   .radio-title { font-size: 0.76rem; }

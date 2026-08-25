@@ -617,12 +617,16 @@ function marcarSeleccion(punto) {
 let infoPopup = null;
 
 function cerrarInfo() {
+  ultimaConsulta = null;
   marcarSeleccion(null);
   document.getElementById("infoPanel").style.display = "none";
   if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
 }
 
+let ultimaConsulta = null;
+
 function mostrarInfo(props, variable, isImc, punto, ancla) {
+  ultimaConsulta = { props, variable, isImc, punto, ancla };
   const html = construirInfoHTML(props, variable, isImc, punto);
   const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
   const anclado = ancla && !enRelieve && window.innerWidth > 768;
@@ -700,7 +704,14 @@ function evitarChoqueConLeyenda(elemento) {
   }
 }
 
-document.getElementById("closeInfoPanel").addEventListener("click", cerrarInfo);
+document.getElementById("closeInfoPanel").addEventListener("click", () => {
+  cerrarInfo();
+  if (selectedFeature) {
+    const capa = state.imcActive ? imcLayer : climateLayer;
+    if (capa) capa.resetStyle(selectedFeature);
+    selectedFeature = null;
+  }
+});
 
 // ─── Leyenda ──────────────────────────────────────────────
 function buildClimateLegend(variable) {
@@ -1107,6 +1118,17 @@ document.addEventListener("click", e => {
   if (!e.target.closest(".var-info-btn")) removeVarTooltip();
 });
 
+// También se cierra al usar el mapa o al elegir una opción, para que no
+// quede tapando el territorio.
+map.on("click movestart zoomstart", removeVarTooltip);
+["varGroup", "refLayerGroup", "seasonGroup"].forEach(id => {
+  const grupo = document.getElementById(id);
+  if (grupo) grupo.addEventListener("click", e => {
+    if (!e.target.closest(".var-info-btn")) removeVarTooltip();
+  });
+});
+window.addEventListener("scroll", removeVarTooltip, true);
+
 // ─── Resaltar distrito desde buscador (mejora 7) ──────────
 function highlightDistrictAt(lat, lon) {
   const activeLayer = state.imcActive ? imcLayer : climateLayer;
@@ -1273,9 +1295,62 @@ btnRelieve.addEventListener("click", () => {
   btnRelieve.classList.toggle("active", activo);
   btnRelieve.setAttribute("aria-pressed", String(activo));
   btnRelieve.title = activo ? "Volver a vista plana" : "Vista en relieve";
+  // El globo abierto se deforma dentro del mapa inclinado: se cierra y la
+  // consulta se vuelve a presentar en el formato adecuado a la nueva vista.
+  const consulta = ultimaConsulta;
+  cerrarInfo();
+  if (consulta) {
+    mostrarInfo(consulta.props, consulta.variable, consulta.isImc,
+                consulta.punto, consulta.ancla);
+  }
+
   // El reencuadre espera a que el nuevo tamaño del lienzo esté aplicado
   requestAnimationFrame(() => setTimeout(() => ajustarAmbito(true), 60));
 });
+
+// ─── Pantalla completa ────────────────────────────────────
+// Aprovecha toda la pantalla, tanto en computadora como en teléfono.
+const btnPantalla = document.getElementById("btnPantalla");
+
+function enPantallaCompleta() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function alternarPantallaCompleta() {
+  const raiz = document.documentElement;
+  if (!enPantallaCompleta()) {
+    const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
+    if (pedir) pedir.call(raiz).catch(() => {});
+  } else {
+    const salir = document.exitFullscreen || document.webkitExitFullscreen;
+    if (salir) salir.call(document).catch(() => {});
+  }
+}
+
+function refrescarBotonPantalla() {
+  const activo = enPantallaCompleta();
+  btnPantalla.classList.toggle("active", activo);
+  btnPantalla.setAttribute("aria-pressed", String(activo));
+  btnPantalla.title = activo ? "Salir de pantalla completa" : "Pantalla completa";
+  const expandir = btnPantalla.querySelector(".icono-expandir");
+  const contraer = btnPantalla.querySelector(".icono-contraer");
+  if (expandir && contraer) {
+    expandir.style.display = activo ? "none" : "";
+    contraer.style.display = activo ? "" : "none";
+  }
+  // El mapa se reajusta al nuevo tamaño de pantalla
+  setTimeout(() => ajustarAmbito(true), 220);
+}
+
+btnPantalla.addEventListener("click", alternarPantallaCompleta);
+document.addEventListener("fullscreenchange", refrescarBotonPantalla);
+document.addEventListener("webkitfullscreenchange", refrescarBotonPantalla);
+
+// En iOS la pantalla completa no está disponible: el botón se retira
+if (!(document.documentElement.requestFullscreen ||
+      document.documentElement.webkitRequestFullscreen)) {
+  btnPantalla.style.display = "none";
+}
 
 // ─── Carga inicial ────────────────────────────────────────
 loadClimateLayer();
