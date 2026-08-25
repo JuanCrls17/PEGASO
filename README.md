@@ -23,11 +23,17 @@ Capas de referencia: departamentos (25), provincias (196) y cuencas (231 unidade
 
 ## Funcionalidades
 
-- Mapa coroplético por distrito (1891 distritos) con leyenda dinámica
+- Mapa coroplético por distrito (1891 distritos) con leyenda dinámica plegable
+- Vista en relieve: perspectiva inclinada para leer la intensidad del cambio
+- Panel de información contextual: informa el distrito y su departamento,
+  provincia o unidad hidrográfica según la capa de referencia activa
 - Buscador de lugares con sugerencias y resaltado del distrito
 - Búsqueda por coordenadas exactas (latitud / longitud)
-- Panel de información con interpretación del valor por punto consultado
 - Cambio de capa de referencia y de período estacional
+- Ámbito restringido al territorio nacional, con encuadre que se adapta
+  al tamaño de pantalla
+- Interfaz adaptativa: en teléfono los controles se agrupan en un panel
+  deslizante y los elementos flotantes se repliegan automáticamente
 
 ## Estructura
 

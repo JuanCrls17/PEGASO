@@ -1,0 +1,17 @@
+{
+  "name": "PEGASO — Plataforma de Escenarios de Cambio Climático para la Gestión y la Adaptación en los Servicios Sectoriales",
+  "short_name": "PEGASO",
+  "description": "Escenarios de cambio climático para el Perú. SENAMHI · MINAM. Escenario SSP5-8.5 CMIP6, resolución 5 km, período 2036–2065.",
+  "lang": "es-PE",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1b3e",
+  "theme_color": "#0d1b3e",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
