@@ -242,13 +242,13 @@ html, body {
   min-width: var(--sidebar-w);
   /* Acabado traslúcido: el mapa se insinúa detrás del panel */
   background: linear-gradient(180deg,
-              rgba(26,42,78,0.82) 0%,
-              rgba(36,51,88,0.80) 35%,
-              rgba(46,63,102,0.78) 65%,
-              rgba(61,77,110,0.76) 85%,
-              rgba(74,85,104,0.74) 100%);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+              rgba(26,42,78,0.66) 0%,
+              rgba(36,51,88,0.63) 35%,
+              rgba(46,63,102,0.60) 65%,
+              rgba(61,77,110,0.58) 85%,
+              rgba(74,85,104,0.56) 100%);
+  backdrop-filter: blur(26px) saturate(170%);
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
   border-right: 3px solid #2d5494;
   overflow-y: auto;
   overflow-x: hidden;
@@ -957,9 +957,9 @@ html, body {
 .map-zoom-ctrl button {
   width: 34px;
   height: 34px;
-  background: rgba(228,236,246,0.86);
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  background: rgba(230,238,248,0.62);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid var(--gris-borde);
   border-radius: 12px;
   font-size: 1.2rem;
@@ -1003,6 +1003,9 @@ html, body {
    El mapa se inclina y las capas ganan profundidad, para leer
    la intensidad del cambio como si fuera un terreno.
    ========================================================= */
+/* La perspectiva se declara en el propio mapa, cuyo punto de fuga queda
+   centrado en él; conservar el espacio 3D permite que los elementos que
+   deben permanecer de pie —como el indicador— se enderecen. */
 .map-container.relieve #map {
   /* El mapa se agranda más allá del contenedor antes de inclinarse: así la
      perspectiva no deja franjas vacías y el terreno llega hasta el borde. */
@@ -1014,6 +1017,8 @@ html, body {
   transform: perspective(1900px) rotateX(52deg);
   transform-origin: 50% 50%;
 }
+
+
 
 #map {
   transition: transform 0.55s cubic-bezier(0.22,1,0.36,1);
@@ -1031,9 +1036,11 @@ html, body {
    Sale del territorio seleccionado, con la punta apuntándolo.
    ========================================================= */
 .info-popup .leaflet-popup-content-wrapper {
-  background: rgba(224,232,243,0.86);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.65),
+              0 12px 38px rgba(0,20,70,0.28);
+  background: rgba(226,234,246,0.58);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-radius: 22px;
   border: 1px solid rgba(154,175,204,0.55);
   box-shadow: 0 10px 34px rgba(0,20,70,0.26), 0 2px 8px rgba(0,0,0,0.12);
@@ -1063,7 +1070,22 @@ html, body {
   filter: drop-shadow(0 3px 5px rgba(8,20,45,0.45));
 }
 
-.map-container.relieve .pin-wrap { transform: rotateX(-52deg); }
+.map-container.relieve .pin-wrap { transform: scaleY(1.624); }
+
+/* Sombra proyectada sobre el terreno, que asienta el indicador */
+.map-container.relieve .pin-wrap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 16px;
+  height: 5px;
+  margin-left: -8px;
+  border-radius: 50%;
+  background: rgba(8,20,45,0.35);
+  filter: blur(2px);
+  transform: rotateX(52deg) translateZ(-2px);
+}
 
 .pin-wrap svg { display: block; }
 
@@ -1255,14 +1277,16 @@ html, body {
 
 /* Panel de información — debajo del buscador flotante */
 .map-info-panel {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.65),
+              0 12px 38px rgba(0,20,70,0.28);
   position: absolute;
   top: 200px;
   left: 16px;
   z-index: 940;
   border-radius: 22px;
-  background: rgba(224,232,243,0.86);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  background: rgba(226,234,246,0.58);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow: 0 10px 34px rgba(0,20,70,0.26), 0 2px 8px rgba(0,0,0,0.12);
   border: 1px solid rgba(154,175,204,0.55);
   min-width: 260px;
@@ -1461,9 +1485,9 @@ html, body {
   left: 16px;
   border-radius: 16px;
   z-index: 900;
-  background: rgba(226,234,244,0.82);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  background: rgba(228,236,247,0.55);
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
   border: 1px solid var(--gris-borde);
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -1884,7 +1908,7 @@ body.no-scroll { overflow: hidden; }
   .navbar-badge { font-size: 0.5rem; padding: 3px 7px; }
 
   .brand-mark { gap: 1px; animation: fadeInDown 0.4s ease both; }
-  .brand-name { font-size: 1.72rem; letter-spacing: 0.4px; }
+  .brand-name { font-size: 1.95rem; letter-spacing: 0.6px; margin-left: 10px; }
 
   /* ── Sidebar deslizable ── */
   .sidebar-overlay { display: block; }
@@ -2044,7 +2068,7 @@ body.no-scroll { overflow: hidden; }
 
 /* ── Teléfonos estrechos ── */
 @media (max-width: 400px) {
-  .brand-name { font-size: 1.75rem; }
+  .brand-name { font-size: 1.82rem; margin-left: 8px; }
   .navbar-logo { height: 30px; }
   .map-legend { max-width: 72vw; }
 }

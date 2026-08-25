@@ -198,7 +198,7 @@ async function fetchGeoJSON(path) {
 
 // ─── Tooltip / popup ─────────────────────────────────────
 function buildTooltip(props, variable, isImc) {
-  const distrito = props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE || "—";
+  const distrito = conTildes(props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE) || "—";
   const valor    = props.valor != null ? props.valor : null;
   if (isImc) {
     const lbl = valor != null ? imcLabel(valor) : "Sin dato";
@@ -280,6 +280,46 @@ function climateBarConfig(variable, valor) {
 
 // ─── Panel de información lateral ─────────────────────────
 
+
+// ─── Ortografía de los topónimos ──────────────────────────
+// Los datos de origen vienen sin tildes; aquí se restituyen para
+// mostrarlos correctamente.
+const TILDES = {
+  // Departamentos
+  "ANCASH": "ÁNCASH", "APURIMAC": "APURÍMAC", "HUANUCO": "HUÁNUCO",
+  "JUNIN": "JUNÍN", "SAN MARTIN": "SAN MARTÍN",
+  // Provincias
+  "ASUNCION": "ASUNCIÓN", "AZANGARO": "AZÁNGARO", "BOLIVAR": "BOLÍVAR",
+  "BONGARA": "BONGARÁ", "CAMANA": "CAMANÁ", "CARAVELI": "CARAVELÍ",
+  "CARLOS FERMIN FITZCARRALD": "CARLOS FERMÍN FITZCARRALD",
+  "CELENDIN": "CELENDÍN", "CHEPEN": "CHEPÉN", "CONCEPCION": "CONCEPCIÓN",
+  "CONTUMAZA": "CONTUMAZÁ", "DANIEL ALCIDES CARRION": "DANIEL ALCIDES CARRIÓN",
+  "DATEM DEL MARAÑON": "DATEM DEL MARAÑÓN",
+  "GENERAL SANCHEZ CERRO": "GENERAL SÁNCHEZ CERRO", "GRAN CHIMU": "GRAN CHIMÚ",
+  "HUAMALIES": "HUAMALÍES", "HUANCANE": "HUANCANÉ", "HUAROCHIRI": "HUAROCHIRÍ",
+  "HUAYTARA": "HUAYTARÁ", "JAEN": "JAÉN", "JULCAN": "JULCÁN",
+  "LA CONVENCION": "LA CONVENCIÓN", "MARAÑON": "MARAÑÓN",
+  "MARISCAL CACERES": "MARISCAL CÁCERES",
+  "MARISCAL RAMON CASTILLA": "MARISCAL RAMÓN CASTILLA",
+  "MORROPON": "MORROPÓN", "OYON": "OYÓN",
+  "PAUCAR DEL SARA SARA": "PÁUCAR DEL SARA SARA", "PURUS": "PURÚS",
+  "RODRIGUEZ DE MENDOZA": "RODRÍGUEZ DE MENDOZA", "SAN ROMAN": "SAN ROMÁN",
+  "SANCHEZ CARRION": "SÁNCHEZ CARRIÓN", "VICTOR FAJARDO": "VÍCTOR FAJARDO",
+  "VILCAS HUAMAN": "VILCAS HUAMÁN", "VIRU": "VIRÚ",
+  // Distritos y capitales de uso frecuente
+  "CAJARURO": "CAJARURO", "LIRCAY": "LIRCAY", "SAN SILVESTRE DE COCHAN": "SAN SILVESTRE DE COCHÁN",
+  "CHUGUR": "CHUGUR", "USQUIL": "USQUIL", "IRAZOLA": "IRAZOLA",
+  "TAHUANIA": "TAHUANÍA", "MAQUIA": "MAQUÍA", "YAUYA": "YAUYA",
+  "CONTAMANA": "CONTAMANA", "REQUENA": "REQUENA", "ZORRITOS": "ZORRITOS",
+  "HUANCAYO": "HUANCAYO", "CHACHAPOYAS": "CHACHAPOYAS",
+};
+
+function conTildes(nombre) {
+  if (!nombre) return nombre;
+  const clave = String(nombre).trim().toUpperCase();
+  return TILDES[clave] || nombre;
+}
+
 // ─── Contexto territorial ─────────────────────────────────
 // Determina en qué unidad de la capa de referencia cae un punto, para que el
 // panel informe el departamento, la provincia o la cuenca correspondiente.
@@ -325,13 +365,13 @@ function unidadDeReferencia(lat, lon) {
 function describirReferencia(props) {
   if (!props) return null;
   if (state.refLayer === "departamentos") {
-    return { etiqueta: "Departamento", valor: props.DEPARTAMEN || "—" };
+    return { etiqueta: "Departamento", valor: conTildes(props.DEPARTAMEN) || "—" };
   }
   if (state.refLayer === "provincias") {
     return {
       etiqueta: "Provincia",
-      valor: props.PROVINCIA || "—",
-      extra: props.DEPARTAMEN ? `Departamento de ${props.DEPARTAMEN}` : "",
+      valor: conTildes(props.PROVINCIA) || "—",
+      extra: props.DEPARTAMEN ? `Departamento de ${conTildes(props.DEPARTAMEN)}` : "",
     };
   }
   if (state.refLayer === "cuencas") {
@@ -345,8 +385,8 @@ function describirReferencia(props) {
 }
 
 function construirInfoHTML(props, variable, isImc, punto) {
-  const distrito = props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE || "—";
-  const dpto     = props.DEPARTAMEN || props.DPTO || "";
+  const distrito = conTildes(props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE) || "—";
+  const dpto     = conTildes(props.DEPARTAMEN || props.DPTO) || "";
   const valor    = props.valor != null ? props.valor : null;
 
   const rows = [];
@@ -485,7 +525,7 @@ function margenesLibres() {
 // Versión compacta para teléfono: destaca el valor y resume el resto,
 // de modo que la ficha ocupe una fracción de la pantalla.
 function construirInfoCompacto(props, variable, isImc, punto) {
-  const distrito = props.DISTRITO || props.NOMBRE || "—";
+  const distrito = conTildes(props.DISTRITO || props.NOMBRE) || "—";
   const valor = props.valor != null ? props.valor : null;
   const ref = describirReferencia(punto ? unidadDeReferencia(punto.lat, punto.lng) : null);
 
@@ -557,12 +597,12 @@ function marcarSeleccion(punto) {
     icon: L.divIcon({
       className: "pin-seleccion",
       html: '<span class="pin-wrap">' +
-            '<svg viewBox="0 0 24 34" width="24" height="34" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 34" width="29" height="41" aria-hidden="true">' +
             '<path d="M12 1.6c5.2 0 9.4 4.2 9.4 9.4 0 6.9-9.4 21.4-9.4 21.4S2.6 17.9 2.6 11c0-5.2 4.2-9.4 9.4-9.4z" ' +
             'fill="#2f7fe0" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>' +
             '<circle cx="12" cy="11" r="3.7" fill="#ffffff"/></svg></span>',
-      iconSize: [24, 34],
-      iconAnchor: [12, 34],
+      iconSize: [29, 41],
+      iconAnchor: [14.5, 41],
     }),
     interactive: false,
     keyboard: false,
