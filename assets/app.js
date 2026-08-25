@@ -480,6 +480,91 @@ function margenesLibres() {
   return { topLeft: [izq, arriba + 40], bottomRight: [der, abajo] };
 }
 
+
+
+// Versión compacta para teléfono: destaca el valor y resume el resto,
+// de modo que la ficha ocupe una fracción de la pantalla.
+function construirInfoCompacto(props, variable, isImc, punto) {
+  const distrito = props.DISTRITO || props.NOMBRE || "—";
+  const valor = props.valor != null ? props.valor : null;
+  const ref = describirReferencia(punto ? unidadDeReferencia(punto.lat, punto.lng) : null);
+
+  let cifra, etiqueta, color, barra = "", texto = "";
+
+  if (isImc) {
+    const lbl = valor != null ? imcLabel(valor) : "Sin dato";
+    const colores = { "Muy Alto": "#d7191c", "Alto": "#f7941d", "Medio": "#c8b800", "Bajo": "#4a9a50" };
+    color = colores[lbl] || "#888";
+    cifra = valor != null ? parseFloat(valor).toFixed(3) : "—";
+    etiqueta = `Índice Multipeligro · ${lbl}`;
+    const pct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
+    barra = `<div class="ic-barra"><div style="width:${pct}%;background:${color}"></div></div>`;
+  } else {
+    const nombres = { pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima" };
+    const unidad = variable === "pr" ? "%" : "°C";
+    cifra = valor != null
+      ? `${valor >= 0 && variable !== "pr" ? "+" : ""}${parseFloat(valor).toFixed(1)} ${unidad}`
+      : "Sin dato";
+    etiqueta = `${nombres[variable] || variable} · ${seasonLabel(state.estacion)}`;
+    const cfg = climateBarConfig(variable, valor);
+    color = cfg ? cfg.color : "#888";
+    if (cfg) barra = `<div class="ic-barra"><div style="width:${cfg.pct}%;background:${cfg.color}"></div></div>`;
+    const interp = climateInterpret(variable, valor);
+    if (interp) texto = interp.text;
+  }
+
+  const ubica = ref ? `${ref.etiqueta}: ${ref.valor}` : "";
+
+  return `<div class="ic-cabecera">
+            <span class="ic-lugar">${distrito}</span>
+            ${ubica ? `<span class="ic-ubica">${ubica}</span>` : ""}
+          </div>
+          <div class="ic-cifra" style="color:${color}">${cifra}</div>
+          <div class="ic-meta">${etiqueta}</div>
+          ${barra}
+          <div class="ic-periodo">2036–2065 respecto a 1981–2010</div>
+          ${texto ? `<div class="ic-texto">${texto}</div>` : ""}`;
+}
+
+
+// Señal breve sobre el territorio consultado, al momento de elegirlo.
+let pulsoActivo = null;
+
+function pulsoEn(punto) {
+  if (!punto) return;
+  if (pulsoActivo) { map.removeLayer(pulsoActivo); pulsoActivo = null; }
+  const marca = L.marker(punto, {
+    icon: L.divIcon({ className: "pulso-seleccion", html: "<span></span><span></span>", iconSize: [0, 0] }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 900,
+  }).addTo(map);
+  pulsoActivo = marca;
+  setTimeout(() => {
+    if (pulsoActivo === marca) { map.removeLayer(marca); pulsoActivo = null; }
+  }, 950);
+}
+
+// ─── Indicador de procedencia ─────────────────────────────
+// Señala en el mapa el territorio del que provienen los datos mostrados.
+let marcadorSeleccion = null;
+
+function marcarSeleccion(punto) {
+  if (marcadorSeleccion) { map.removeLayer(marcadorSeleccion); marcadorSeleccion = null; }
+  if (!punto) return;
+  marcadorSeleccion = L.marker(punto, {
+    icon: L.divIcon({
+      className: "pin-seleccion",
+      html: '<span class="pin-cuerpo"></span><span class="pin-base"></span>',
+      iconSize: [24, 34],
+      iconAnchor: [12, 34],
+    }),
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 1000,
+  }).addTo(map);
+}
+
 // ─── Presentación de la información del punto ─────────────
 // En pantalla amplia y vista plana se muestra como globo anclado al
 // territorio elegido, con su punta apuntando a la selección. En teléfono
@@ -487,21 +572,28 @@ function margenesLibres() {
 let infoPopup = null;
 
 function cerrarInfo() {
+  marcarSeleccion(null);
   document.getElementById("infoPanel").style.display = "none";
   if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
 }
 
 function mostrarInfo(props, variable, isImc, punto, ancla) {
   const html = construirInfoHTML(props, variable, isImc, punto);
-  const anclado = ancla && window.innerWidth > 768;
+  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
+  const anclado = ancla && !enRelieve && window.innerWidth > 768;
+
+  // En relieve el globo quedaría deformado por la perspectiva: la
+  // procedencia se señala con un indicador clavado en el territorio.
+  marcarSeleccion(enRelieve ? punto : null);
+  pulsoEn(punto);
 
   if (anclado) {
     document.getElementById("infoPanel").style.display = "none";
     const libre = margenesLibres();
     infoPopup = L.popup({
       className: "info-popup",
-      maxWidth: 400,
-      minWidth: 340,
+      maxWidth: 340,
+      minWidth: 270,
       autoPan: true,
       autoPanPaddingTopLeft: libre.topLeft,
       autoPanPaddingBottomRight: libre.bottomRight,
@@ -516,8 +608,11 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
   }
 
   if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
-  document.getElementById("infoPanelBody").innerHTML = html;
+  const enTelefono = window.innerWidth <= 768;
+  document.getElementById("infoPanelBody").innerHTML =
+    enTelefono ? construirInfoCompacto(props, variable, isImc, punto) : html;
   const panel = document.getElementById("infoPanel");
+  panel.classList.toggle("compacto", enTelefono);
   const floatBox = document.getElementById("mapSearchFloat");
   if (floatBox && window.innerWidth > 768) {
     const r1 = floatBox.getBoundingClientRect();

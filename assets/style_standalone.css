@@ -78,7 +78,13 @@ html, body {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: var(--navbar-h);
-  background: linear-gradient(90deg, #0d1b3e 0%, #1a2f5c 30%, #2c4172 60%, #4a5568 100%);
+  background: linear-gradient(90deg,
+              rgba(13,27,62,0.88) 0%,
+              rgba(26,47,92,0.86) 30%,
+              rgba(44,65,114,0.84) 60%,
+              rgba(74,85,104,0.82) 100%);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -234,7 +240,15 @@ html, body {
 .sidebar {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
-  background: linear-gradient(180deg, #1a2a4e 0%, #243358 35%, #2e3f66 65%, #3d4d6e 85%, #4a5568 100%);
+  /* Acabado traslúcido: el mapa se insinúa detrás del panel */
+  background: linear-gradient(180deg,
+              rgba(26,42,78,0.82) 0%,
+              rgba(36,51,88,0.80) 35%,
+              rgba(46,63,102,0.78) 65%,
+              rgba(61,77,110,0.76) 85%,
+              rgba(74,85,104,0.74) 100%);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
   border-right: 3px solid #2d5494;
   overflow-y: auto;
   overflow-x: hidden;
@@ -943,7 +957,9 @@ html, body {
 .map-zoom-ctrl button {
   width: 34px;
   height: 34px;
-  background: var(--blanco);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
   border: 1px solid var(--gris-borde);
   border-radius: 7px;
   font-size: 1.2rem;
@@ -1016,7 +1032,7 @@ html, body {
    ========================================================= */
 .info-popup .leaflet-popup-content-wrapper {
   background: var(--blanco);
-  border-radius: var(--radius);
+  border-radius: 12px;
   border: 1px solid var(--gris-borde);
   box-shadow: 0 10px 34px rgba(0,20,70,0.26), 0 2px 8px rgba(0,0,0,0.12);
   padding: 0;
@@ -1025,7 +1041,7 @@ html, body {
 
 .info-popup .leaflet-popup-content {
   margin: 0;
-  min-width: 320px;
+  min-width: 268px;
 }
 
 /* El globo se muestra por encima de los demás flotantes: aunque el mapa
@@ -1034,10 +1050,70 @@ html, body {
 
 /* Con el mapa inclinado, el globo se endereza para resultar legible;
    su punta continúa apuntando al territorio seleccionado. */
-.map-container.relieve .info-popup .leaflet-popup-content-wrapper,
-.map-container.relieve .info-popup .leaflet-popup-tip-container {
-  transform: rotateX(-52deg);
+/* Indicador clavado en el territorio del que provienen los datos.
+   Se mantiene vertical aunque el mapa esté inclinado. */
+.pin-seleccion {
+  pointer-events: none;
   transform-origin: bottom center;
+}
+
+.map-container.relieve .pin-seleccion { transform: rotateX(-52deg); }
+
+.pin-cuerpo {
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: linear-gradient(135deg, #2f7fe0, #14509e);
+  border: 2px solid #ffffff;
+  box-shadow: 0 3px 10px rgba(8,20,45,0.45);
+}
+
+.pin-cuerpo::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.pin-base {
+  position: absolute;
+  left: 11px;
+  top: 17px;
+  width: 2px;
+  height: 17px;
+  background: linear-gradient(180deg, #14509e, rgba(20,80,158,0.25));
+}
+
+/* Señal de selección: anillos que se expanden sobre el territorio elegido */
+.pulso-seleccion { pointer-events: none; }
+
+.pulso-seleccion span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border-radius: 50%;
+  border: 2.5px solid #1e5bb5;
+  box-shadow: 0 0 12px rgba(30,91,181,0.5);
+  animation: pulsoAnillo 0.9s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+.pulso-seleccion span:nth-child(2) { animation-delay: 0.17s; }
+
+@keyframes pulsoAnillo {
+  from { transform: scale(0.35); opacity: 0.95; }
+  to   { transform: scale(4);    opacity: 0; }
+}
+
+.leaflet-overlay-pane path.leaflet-interactive {
+  transition: fill-opacity 0.22s ease, stroke-width 0.22s ease, stroke 0.22s ease;
 }
 
 .map-container.relieve .info-popup .leaflet-popup-tip-container {
@@ -1045,7 +1121,7 @@ html, body {
 }
 
 /* Las filas disponen de ancho suficiente para no partirse */
-.info-popup .info-row { gap: 18px; }
+.info-popup .info-row { gap: 16px; padding: 4px 0; }
 .info-popup .info-val { white-space: nowrap; }
 .info-popup .info-val small { white-space: normal; }
 
@@ -1053,14 +1129,14 @@ html, body {
   background: linear-gradient(90deg, #14264d 0%, #21386a 100%);
   color: var(--blanco);
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.9px;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  padding: 9px 34px 9px 13px;
+  padding: 8px 32px 8px 12px;
 }
 
-.info-popup-body { padding: 4px 13px 11px 13px; }
+.info-popup-body { padding: 2px 12px 9px 12px; }
 
 .info-popup .leaflet-popup-close-button {
   color: rgba(255,255,255,0.75) !important;
@@ -1072,12 +1148,124 @@ html, body {
 
 .info-popup .leaflet-popup-close-button:hover { color: var(--blanco) !important; }
 
+/* =========================================================
+   FICHA COMPACTA (teléfono)
+   Jerarquía en lugar de tabla: el valor manda y el resto resume.
+   ========================================================= */
+/* Solo se conserva el botón de cierre, sobre la ficha */
+.map-info-panel.compacto .info-panel-header {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  background: none;
+  border: none;
+  padding: 0;
+  display: block;
+}
+
+.map-info-panel.compacto .info-panel-header > span { display: none; }
+
+.map-info-panel.compacto .info-panel-header button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #eef2f7;
+  color: #6b7688;
+  font-size: 0.8rem;
+}
+
+/* Manija superior, como en las hojas deslizables */
+.map-info-panel.compacto::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: #d7dee8;
+}
+
+.map-info-panel.compacto .info-panel-body {
+  padding: 20px 16px calc(14px + env(safe-area-inset-bottom)) 16px;
+}
+
+.ic-cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+  padding-right: 34px;
+}
+
+.ic-lugar {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #14264d;
+  line-height: 1.15;
+}
+
+.ic-ubica {
+  font-size: 0.62rem;
+  color: #7a8697;
+}
+
+.ic-cifra {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.4px;
+}
+
+.ic-meta {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #5a6675;
+  margin-top: 3px;
+}
+
+.ic-barra {
+  height: 6px;
+  border-radius: 3px;
+  background: #e8ecf2;
+  overflow: hidden;
+  margin: 9px 0 6px;
+}
+
+.ic-barra > div { height: 100%; border-radius: 3px; }
+
+.ic-periodo {
+  font-size: 0.58rem;
+  color: #98a3b2;
+}
+
+.ic-texto {
+  font-size: 0.66rem;
+  line-height: 1.4;
+  color: #3c4757;
+  background: #f2f6fb;
+  border-left: 3px solid var(--azul);
+  border-radius: 0 6px 6px 0;
+  padding: 7px 9px;
+  margin-top: 9px;
+}
+
+.ic-texto strong { color: var(--azul); }
+
+/* Botón de cierre propio de la ficha compacta */
+.map-info-panel.compacto { padding-top: 0; }
+
 /* Panel de información — debajo del buscador flotante */
 .map-info-panel {
   position: absolute;
   top: 200px;
   left: 16px;
   z-index: 940;
+  border-radius: 12px;
   background: var(--blanco);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
@@ -1135,7 +1323,7 @@ html, body {
 .info-row:last-child { border-bottom: none; }
 
 .info-key {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 600;
   color: var(--gris-txt);
   text-transform: uppercase;
@@ -1144,7 +1332,7 @@ html, body {
 }
 
 .info-val {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 500;
   color: #1a2236;
   text-align: right;
@@ -1275,7 +1463,9 @@ html, body {
   bottom: 20px;
   left: 16px;
   z-index: 900;
-  background: rgba(255,255,255,0.97);
+  background: rgba(255,255,255,0.80);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
   border: 1px solid var(--gris-borde);
   border-radius: var(--radius);
   padding: 10px 12px;
@@ -1369,7 +1559,12 @@ html, body {
   position: fixed;
   bottom: 0; left: 0; right: 0;
   height: var(--footer-h);
-  background: linear-gradient(90deg, #0d1b3e 0%, #1a2f5c 50%, #4a5568 100%);
+  background: linear-gradient(90deg,
+              rgba(13,27,62,0.88) 0%,
+              rgba(26,47,92,0.86) 50%,
+              rgba(74,85,104,0.84) 100%);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1423,7 +1618,7 @@ html, body {
 
 /* La punta del globo se conserva: señala el territorio consultado */
 .leaflet-popup-tip {
-  background: var(--blanco);
+  background: rgba(255,255,255,0.88);
   box-shadow: 0 3px 12px rgba(0,20,70,0.18);
 }
 
@@ -1692,7 +1887,7 @@ body.no-scroll { overflow: hidden; }
   .navbar-badge { font-size: 0.5rem; padding: 3px 7px; }
 
   .brand-mark { gap: 1px; animation: fadeInDown 0.4s ease both; }
-  .brand-name { font-size: 1.32rem; letter-spacing: 0.3px; }
+  .brand-name { font-size: 1.72rem; letter-spacing: 0.4px; }
 
   /* ── Sidebar deslizable ── */
   .sidebar-overlay { display: block; }
@@ -1770,9 +1965,9 @@ body.no-scroll { overflow: hidden; }
     right: 0;
     max-width: none;
     min-width: 0;
-    border-radius: 14px 14px 0 0;
+    border-radius: 16px 16px 0 0;
     border-bottom: none;
-    max-height: 44vh;
+    max-height: 38vh;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
     box-shadow: 0 -6px 28px rgba(0,20,70,0.28);
@@ -1849,7 +2044,7 @@ body.no-scroll { overflow: hidden; }
 
 /* ── Teléfonos estrechos ── */
 @media (max-width: 400px) {
-  .brand-name { font-size: 1.15rem; }
+  .brand-name { font-size: 1.75rem; }
   .navbar-logo { height: 30px; }
   .map-legend { max-width: 72vw; }
 }
