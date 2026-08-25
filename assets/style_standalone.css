@@ -18,7 +18,7 @@
   --shadow-md:  0 4px 16px rgba(0,0,0,0.14);
   --radius:     5px;
   --sidebar-w:  280px;
-  --navbar-h:   88px;
+  --navbar-h:   72px;
   --footer-h:   36px;
 }
 
@@ -110,7 +110,7 @@ html, body {
 }
 
 .navbar-logo {
-  height: 46px;
+  height: 40px;
   width: auto;
   object-fit: contain;
   flex-shrink: 0;
@@ -121,13 +121,13 @@ html, body {
 
 .navbar-divider {
   width: 1px;
-  height: 40px;
+  height: 34px;
   background: rgba(255,255,255,0.22);
   flex-shrink: 0;
 }
 
 .navbar-logo-minam {
-  height: 38px;
+  height: 32px;
   width: auto;
   object-fit: contain;
   flex-shrink: 0;
@@ -137,7 +137,7 @@ html, body {
 .navbar-titles {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   min-width: 0;
   flex: 1;
 }
@@ -162,7 +162,7 @@ html, body {
 
 .brand-name {
   font-family: 'Montserrat', sans-serif;
-  font-size: 1.85rem;
+  font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 0.5px;
   line-height: 0.95;
@@ -174,7 +174,7 @@ html, body {
 .navbar-title {
   color: rgba(255,255,255,0.94);
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.4px;
   line-height: 1.25;
