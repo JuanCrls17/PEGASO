@@ -60,15 +60,29 @@ const map = L.map("map", {
   bounceAtZoomLimits: false,
 });
 
-// Base cartográfica de tono neutro: da referencia geográfica sin competir
-// con los colores de las variables climáticas, y no exige cabecera Referer
-// (la de OpenStreetMap la rechaza al abrir el archivo en local).
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  subdomains: "abcd",
+// Base cartográfica de OpenStreetMap: aporta relieve, vegetación y
+// topónimos como referencia geográfica.
+const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 14,
-  detectRetina: true,
   crossOrigin: true,
 }).addTo(map);
+
+// OpenStreetMap rechaza las peticiones sin cabecera Referer, lo que ocurre
+// al abrir el archivo directamente desde el disco. Si eso pasa, se pasa a
+// una base equivalente para que el mapa nunca quede sin fondo.
+let fallosBase = 0;
+baseOSM.on("tileerror", () => {
+  if (++fallosBase < 5 || map.hasLayer(baseOSM) === false) return;
+  map.removeLayer(baseOSM);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    subdomains: "abcd",
+    maxZoom: 14,
+    detectRetina: true,
+    crossOrigin: true,
+  }).addTo(map).bringToBack();
+  const attr = document.querySelector(".footer-attr");
+  if (attr) attr.textContent = "Base cartográfica © OpenStreetMap · © CARTO";
+});
 
 // El encuadre se recalcula según el tamaño real del contenedor: el Perú
 // siempre se ve completo y centrado, con algo de territorio vecino como
