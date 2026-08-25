@@ -60,23 +60,39 @@ const map = L.map("map", {
   bounceAtZoomLimits: false,
 });
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+// Base cartográfica de tono neutro: da referencia geográfica sin competir
+// con los colores de las variables climáticas, y no exige cabecera Referer
+// (la de OpenStreetMap la rechaza al abrir el archivo en local).
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  subdomains: "abcd",
   maxZoom: 14,
+  detectRetina: true,
+  crossOrigin: true,
 }).addTo(map);
 
 // El encuadre se recalcula según el tamaño real del contenedor: el Perú
 // siempre se ve completo y centrado, con algo de territorio vecino como
 // referencia geográfica, tanto en computadora como en teléfono.
+// En relieve la perspectiva acerca la imagen: se compensa alejando el mapa
+// para que el territorio siga viéndose completo.
+function compensacionRelieve() {
+  // El relieve amplía el propio lienzo del mapa, así que no necesita
+  // alejamiento adicional para mostrar el territorio completo.
+  return 0;
+}
+
 function ajustarAmbito(reencuadrar) {
   map.invalidateSize({ animate: false });
 
   map.setMaxBounds(null);                       // se liberan los límites para medir
   const margen = window.innerWidth <= 768 ? 14 : 26;
-  const zMin = map.getBoundsZoom(PERU_BOUNDS, false, [margen, margen]);
+  const compensa = compensacionRelieve();
+  const zMin = map.getBoundsZoom(PERU_BOUNDS, false, [margen, margen]) - compensa - 0.5;
 
   map.setMinZoom(zMin);
   if (reencuadrar || map.getZoom() < zMin) {
     map.fitBounds(PERU_BOUNDS, { padding: [margen, margen], animate: false });
+    if (compensa) map.setZoom(map.getZoom() - compensa, { animate: false });
   }
 
   aplicarLimitesNavegacion();
@@ -313,10 +329,7 @@ function describirReferencia(props) {
   return null;
 }
 
-function showInfoPanel(props, variable, isImc, latlng) {
-  const panel = document.getElementById("infoPanel");
-  const body  = document.getElementById("infoPanelBody");
-
+function construirInfoHTML(props, variable, isImc, punto) {
   const distrito = props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE || "—";
   const dpto     = props.DEPARTAMEN || props.DPTO || "";
   const valor    = props.valor != null ? props.valor : null;
@@ -325,7 +338,7 @@ function showInfoPanel(props, variable, isImc, latlng) {
   rows.push({ k: "Distrito", v: distrito });
 
   // Unidad territorial según la capa de referencia elegida
-  const ref = describirReferencia(latlng ? unidadDeReferencia(latlng.lat, latlng.lng) : null);
+  const ref = describirReferencia(punto ? unidadDeReferencia(punto.lat, punto.lng) : null);
   if (ref) {
     rows.push({
       k: ref.etiqueta,
@@ -387,28 +400,85 @@ function showInfoPanel(props, variable, isImc, latlng) {
     if (interp) interpretHtml = `<div class="info-interpret">${interp.text}</div>`;
   }
 
-  body.innerHTML =
-    rows.map(r =>
+  return rows.map(r =>
       `<div class="info-row">
         <span class="info-key">${r.k}</span>
         <span class="info-val${r.highlight ? " highlight" : ""}">${r.v}</span>
       </div>`
     ).join("") + barHtml + interpretHtml;
+}
 
-  // Posicionar el panel debajo del buscador flotante
+
+// Punto representativo del polígono: su centro si cae dentro, y si no,
+// un vértice interior. Sirve para ubicar el distrito en la capa de referencia.
+function puntoRepresentativo(layer) {
+  const b = layer.getBounds();
+  const c = b.getCenter();
+  const geom = layer.feature && layer.feature.geometry;
+  if (geom && puntoEnGeometria(c.lat, c.lng, geom)) return c;
+  if (geom) {
+    const poly = geom.type === "Polygon" ? geom.coordinates
+               : geom.type === "MultiPolygon" ? geom.coordinates[0]
+               : null;
+    if (poly && poly[0] && poly[0].length) {
+      // Se promedian los vértices del anillo exterior
+      let sx = 0, sy = 0;
+      for (const [x, y] of poly[0]) { sx += x; sy += y; }
+      const n = poly[0].length;
+      const m = L.latLng(sy / n, sx / n);
+      if (puntoEnGeometria(m.lat, m.lng, geom)) return m;
+    }
+  }
+  return c;
+}
+
+// ─── Presentación de la información del punto ─────────────
+// En pantalla amplia y vista plana se muestra como globo anclado al
+// territorio elegido, con su punta apuntando a la selección. En teléfono
+// o en relieve —donde un globo anclado quedaría inclinado— se usa el panel.
+let infoPopup = null;
+
+function cerrarInfo() {
+  document.getElementById("infoPanel").style.display = "none";
+  if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
+}
+
+function mostrarInfo(props, variable, isImc, punto, ancla) {
+  const html = construirInfoHTML(props, variable, isImc, punto);
+  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
+  const anclado = ancla && !enRelieve && window.innerWidth > 768;
+
+  if (anclado) {
+    document.getElementById("infoPanel").style.display = "none";
+    infoPopup = L.popup({
+      className: "info-popup",
+      maxWidth: 320,
+      minWidth: 268,
+      autoPan: true,
+      autoPanPadding: [24, 24],
+      closeButton: true,
+      offset: [0, -4],
+    })
+      .setLatLng(ancla)
+      .setContent(`<div class="info-popup-head">Información del punto</div>
+                   <div class="info-popup-body">${html}</div>`)
+      .openOn(map);
+    return;
+  }
+
+  if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
+  document.getElementById("infoPanelBody").innerHTML = html;
+  const panel = document.getElementById("infoPanel");
   const floatBox = document.getElementById("mapSearchFloat");
-  if (floatBox) {
-    const floatRect     = floatBox.getBoundingClientRect();
-    const containerRect = document.querySelector(".map-container").getBoundingClientRect();
-    const topOffset     = floatRect.bottom - containerRect.top + 10;
-    panel.style.top     = topOffset + "px";
+  if (floatBox && window.innerWidth > 768) {
+    const r1 = floatBox.getBoundingClientRect();
+    const r2 = document.querySelector(".map-container").getBoundingClientRect();
+    panel.style.top = (r1.bottom - r2.top + 10) + "px";
   }
   panel.style.display = "block";
 }
 
-document.getElementById("closeInfoPanel").addEventListener("click", () => {
-  document.getElementById("infoPanel").style.display = "none";
-});
+document.getElementById("closeInfoPanel").addEventListener("click", cerrarInfo);
 
 // ─── Leyenda ──────────────────────────────────────────────
 function buildClimateLegend(variable) {
@@ -463,7 +533,7 @@ function buildImcLegend() {
 async function loadClimateLayer() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   selectedFeature = null;
-  document.getElementById("infoPanel").style.display = "none";
+  cerrarInfo();
   if (state.imcActive || state.variable === "imc") return;
 
   showLoader();
@@ -491,7 +561,8 @@ async function loadClimateLayer() {
             e.target.setStyle({ weight: 2.5, color: "#1e5bb5", fillOpacity: 0.97, dashArray: null });
             e.target.bringToFront();
             if (refGeoLayer) refGeoLayer.bringToFront();
-            showInfoPanel(feat.properties, state.variable, false, e.latlng);
+            const pt = puntoRepresentativo(e.target);
+            mostrarInfo(feat.properties, state.variable, false, pt, e.latlng);
           },
         });
       },
@@ -512,7 +583,7 @@ async function loadImcLayer() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   if (imcLayer)     { map.removeLayer(imcLayer);     imcLayer     = null; }
   selectedFeature = null;
-  document.getElementById("infoPanel").style.display = "none";
+  cerrarInfo();
   if (!state.imcActive) { loadClimateLayer(); return; }
 
   showLoader();
@@ -540,7 +611,8 @@ async function loadImcLayer() {
             e.target.setStyle({ weight: 2.5, color: "#1e5bb5", fillOpacity: 0.97 });
             e.target.bringToFront();
             if (refGeoLayer) refGeoLayer.bringToFront();
-            showInfoPanel(feat.properties, null, true, e.latlng);
+            const pt = puntoRepresentativo(e.target);
+            mostrarInfo(feat.properties, null, true, pt, e.latlng);
           },
         });
       },
@@ -846,7 +918,8 @@ function highlightDistrictAt(lat, lon) {
   closest.setStyle({ weight: 2.5, color: "#f7b731", fillOpacity: 0.97, dashArray: null });
   closest.bringToFront();
   if (refGeoLayer) refGeoLayer.bringToFront();
-  showInfoPanel(closest.feature.properties, state.variable, state.imcActive, { lat, lng: lon });
+  const pt = puntoRepresentativo(closest);
+  mostrarInfo(closest.feature.properties, state.variable, state.imcActive, pt, L.latLng(lat, lon));
 }
 
 /* =========================================================
@@ -978,9 +1051,8 @@ btnRelieve.addEventListener("click", () => {
   btnRelieve.classList.toggle("active", activo);
   btnRelieve.setAttribute("aria-pressed", String(activo));
   btnRelieve.title = activo ? "Volver a vista plana" : "Vista en relieve";
-  // El desplazamiento sigue disponible y con más recorrido: en relieve
-  // se amplía el área navegable para poder alcanzar otras regiones.
-  aplicarLimitesNavegacion();
+  // El reencuadre espera a que el nuevo tamaño del lienzo esté aplicado
+  requestAnimationFrame(() => setTimeout(() => ajustarAmbito(true), 60));
 });
 
 // ─── Carga inicial ────────────────────────────────────────
