@@ -90,9 +90,10 @@ baseOSM.on("tileerror", () => {
 // En relieve la perspectiva acerca la imagen: se compensa alejando el mapa
 // para que el territorio siga viéndose completo.
 function compensacionRelieve() {
-  // El relieve amplía el propio lienzo del mapa, así que no necesita
-  // alejamiento adicional para mostrar el territorio completo.
-  return 0;
+  // Al inclinarse, el lienzo del mapa crece y con él la cantidad de teselas.
+  // Un nivel menos de acercamiento mantiene la vista completa y evita
+  // multiplicar las descargas.
+  return document.querySelector(".map-container").classList.contains("relieve") ? 1 : 0;
 }
 
 function ajustarAmbito(reencuadrar) {
@@ -446,6 +447,39 @@ function puntoRepresentativo(layer) {
   return c;
 }
 
+
+// Márgenes que el globo debe respetar: el mapa se desplaza lo necesario
+// para que la información no quede debajo del buscador, de la leyenda ni
+// de los controles de zoom.
+function margenesLibres() {
+  const cont = document.querySelector(".map-container").getBoundingClientRect();
+  const visible = el => el && el.offsetParent !== null &&
+                        getComputedStyle(el).visibility !== "hidden";
+
+  let izq = 24, arriba = 24, der = 24, abajo = 24;
+
+  const buscador = document.getElementById("mapSearchFloat");
+  if (visible(buscador)) {
+    const r = buscador.getBoundingClientRect();
+    izq = Math.max(izq, r.right - cont.left + 18);
+  }
+
+  const leyenda = document.getElementById("mapLegend");
+  if (visible(leyenda)) {
+    const r = leyenda.getBoundingClientRect();
+    izq = Math.max(izq, r.right - cont.left + 18);
+  }
+
+  const zoom = document.getElementById("zoomCtrl");
+  if (visible(zoom)) {
+    const r = zoom.getBoundingClientRect();
+    der = Math.max(der, cont.right - r.left + 18);
+  }
+
+  // Se deja sitio para el alto del propio globo
+  return { topLeft: [izq, arriba + 40], bottomRight: [der, abajo] };
+}
+
 // ─── Presentación de la información del punto ─────────────
 // En pantalla amplia y vista plana se muestra como globo anclado al
 // territorio elegido, con su punta apuntando a la selección. En teléfono
@@ -459,17 +493,18 @@ function cerrarInfo() {
 
 function mostrarInfo(props, variable, isImc, punto, ancla) {
   const html = construirInfoHTML(props, variable, isImc, punto);
-  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
-  const anclado = ancla && !enRelieve && window.innerWidth > 768;
+  const anclado = ancla && window.innerWidth > 768;
 
   if (anclado) {
     document.getElementById("infoPanel").style.display = "none";
+    const libre = margenesLibres();
     infoPopup = L.popup({
       className: "info-popup",
-      maxWidth: 320,
-      minWidth: 268,
+      maxWidth: 400,
+      minWidth: 340,
       autoPan: true,
-      autoPanPadding: [24, 24],
+      autoPanPaddingTopLeft: libre.topLeft,
+      autoPanPaddingBottomRight: libre.bottomRight,
       closeButton: true,
       offset: [0, -4],
     })
@@ -490,6 +525,25 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
     panel.style.top = (r1.bottom - r2.top + 10) + "px";
   }
   panel.style.display = "block";
+  evitarChoqueConLeyenda(panel);
+}
+
+// Si el panel y la leyenda se disputan el mismo espacio, la leyenda se
+// pliega: la información consultada nunca debe quedar tapada.
+function evitarChoqueConLeyenda(panel) {
+  const leyenda = document.getElementById("mapLegend");
+  if (!leyenda || leyenda.classList.contains("collapsed")) return;
+  const a = panel.getBoundingClientRect();
+  const b = leyenda.getBoundingClientRect();
+  const chocan = !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+  if (chocan) {
+    leyenda.classList.add("collapsed");
+    const btn = document.getElementById("legendToggle");
+    if (btn) {
+      btn.setAttribute("aria-expanded", "false");
+      btn.setAttribute("aria-label", "Desplegar leyenda");
+    }
+  }
 }
 
 document.getElementById("closeInfoPanel").addEventListener("click", cerrarInfo);

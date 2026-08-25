@@ -26,6 +26,8 @@ html, body {
   height: 100%;
   font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
   font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   color: #1a2236;
   background: var(--gris-bg);
   overflow: hidden;
@@ -536,7 +538,7 @@ html, body {
   top: 16px;
   left: 16px;
   z-index: 950;
-  width: 320px;
+  width: 288px;
   border-radius: 5px;
   box-shadow:
     0 8px 32px rgba(0,20,70,0.22),
@@ -557,7 +559,7 @@ html, body {
 .msf-topbar {
   background: linear-gradient(135deg, #0d1b3e 0%, #1e3a6e 55%, #2d5494 100%);
   background-size: 200% 200%;
-  padding: 11px 14px 10px;
+  padding: 8px 12px 7px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -581,8 +583,8 @@ html, body {
 }
 
 .msf-topbar-icon {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   background: rgba(255,255,255,0.14);
   border-radius: 7px;
   display: flex;
@@ -603,7 +605,7 @@ html, body {
 
 .msf-topbar-title {
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 700;
   color: #ffffff;
   text-transform: uppercase;
@@ -620,9 +622,9 @@ html, body {
 .msf-header {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 13px;
-  height: 44px;
+  gap: 8px;
+  padding: 0 12px;
+  height: 38px;
   background: #ffffff;
   border-bottom: 1.5px solid #e8eef6;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -989,10 +991,10 @@ html, body {
   /* El mapa se agranda más allá del contenedor antes de inclinarse: así la
      perspectiva no deja franjas vacías y el terreno llega hasta el borde. */
   position: absolute;
-  top: -80%;
-  left: -30%;
-  width: 160%;
-  height: 260%;
+  top: -65%;
+  left: -25%;
+  width: 150%;
+  height: 230%;
   transform: perspective(1900px) rotateX(52deg);
   transform-origin: 50% 50%;
 }
@@ -1023,8 +1025,29 @@ html, body {
 
 .info-popup .leaflet-popup-content {
   margin: 0;
-  width: auto !important;
+  min-width: 320px;
 }
+
+/* El globo se muestra por encima de los demás flotantes: aunque el mapa
+   se desplaza para dejarle sitio, nunca debe quedar tapado. */
+.leaflet-popup-pane { z-index: 960; }
+
+/* Con el mapa inclinado, el globo se endereza para resultar legible;
+   su punta continúa apuntando al territorio seleccionado. */
+.map-container.relieve .info-popup .leaflet-popup-content-wrapper,
+.map-container.relieve .info-popup .leaflet-popup-tip-container {
+  transform: rotateX(-52deg);
+  transform-origin: bottom center;
+}
+
+.map-container.relieve .info-popup .leaflet-popup-tip-container {
+  filter: drop-shadow(0 4px 6px rgba(8,20,45,0.35));
+}
+
+/* Las filas disponen de ancho suficiente para no partirse */
+.info-popup .info-row { gap: 18px; }
+.info-popup .info-val { white-space: nowrap; }
+.info-popup .info-val small { white-space: normal; }
 
 .info-popup-head {
   background: linear-gradient(90deg, #14264d 0%, #21386a 100%);
@@ -1054,7 +1077,7 @@ html, body {
   position: absolute;
   top: 200px;
   left: 16px;
-  z-index: 900;
+  z-index: 940;
   background: var(--blanco);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
@@ -1749,7 +1772,7 @@ body.no-scroll { overflow: hidden; }
     min-width: 0;
     border-radius: 14px 14px 0 0;
     border-bottom: none;
-    max-height: 52vh;
+    max-height: 44vh;
     overflow-y: auto;
     padding-bottom: env(safe-area-inset-bottom);
     box-shadow: 0 -6px 28px rgba(0,20,70,0.28);
@@ -1763,6 +1786,32 @@ body.no-scroll { overflow: hidden; }
 
   .info-panel-header { padding: 13px 14px; position: sticky; top: 0; }
   .info-panel-header button { width: 34px; height: 34px; font-size: 1.05rem; }
+
+  /* ── Escala de texto y controles para pantalla pequeña ── */
+  html, body { font-size: 13px; }
+
+  .info-panel-header { font-size: 0.72rem; padding: 10px 12px; }
+  .info-panel-header button { width: 30px; height: 30px; font-size: 0.95rem; }
+  .info-panel-body { padding: 2px 12px 10px 12px; }
+  .info-row { padding: 4px 0; gap: 12px; }
+  .info-key { font-size: 0.62rem; letter-spacing: 0.2px; }
+  .info-val { font-size: 0.72rem; }
+  .info-value-bar-wrap { margin-top: 8px; }
+  .info-value-bar-label { font-size: 0.58rem; }
+  .info-interpret { font-size: 0.66rem; padding: 8px 10px; }
+
+  .map-zoom-ctrl button { width: 36px; height: 36px; font-size: 1.15rem; }
+  .btn-relieve svg { width: 15px; height: 15px; }
+
+  .section-label { font-size: 0.62rem; }
+  .radio-title { font-size: 0.76rem; }
+  .radio-desc { font-size: 0.62rem; }
+  .radio-icon { width: 30px; height: 30px; }
+  .radio-icon svg { width: 20px; height: 20px; }
+  .ref-icon { width: 30px; height: 30px; }
+  .ref-icon svg { width: 22px; height: 22px; }
+
+  .footer-left { font-size: 0.5rem; }
 
   /* ── Leyenda compacta ── */
   .map-legend {
