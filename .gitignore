@@ -22,7 +22,8 @@ venv/
 Thumbs.db
 *.Zone.Identifier
 
-# ── IDEs ──
+# ── IDEs y herramientas ──
+.claude/
 .vscode/
 .idea/
 *.swp

@@ -35,32 +35,6 @@ Capas de referencia: departamentos (25), provincias (196) y cuencas (231 unidade
 - Interfaz adaptativa: en teléfono los controles se agrupan en un panel
   deslizante y los elementos flotantes se repliegan automáticamente
 
-## Estructura
-
-```
-index.html                 Aplicación web (versión publicada)
-assets/app.js              Lógica del visor (Leaflet)
-assets/style_standalone.css Estilos
-data/*.geojson             Capas climáticas y de referencia
-streamlit_app.py           Versión alternativa en Streamlit
-```
-
-## Uso local
-
-La versión web es estática y no requiere instalación:
-
-```bash
-python3 -m http.server 8000
-# abrir http://localhost:8000
-```
-
-Versión Streamlit:
-
-```bash
-pip install -r requirements.txt
-streamlit run streamlit_app.py
-```
-
 ## Fuente
 
 Servicio Nacional de Meteorología e Hidrología del Perú (SENAMHI) —

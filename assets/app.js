@@ -18,6 +18,14 @@ const TEMP_COLORS = [
   "#e61f1d","#d7121f","#c70723","#b30026","#9a0026","#800026"
 ];
 
+const NOMBRE_VARIABLE = {
+  pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima", imc: "Índice Multipeligro",
+};
+
+const NOMBRE_REFERENCIA = {
+  departamentos: "departamentos", provincias: "provincias", cuencas: "cuencas hidrográficas",
+};
+
 const IMC_COLORS = {
   "Muy Alto": "#d7191c",
   "Alto":     "#f7941d",
@@ -38,12 +46,10 @@ const state = {
 let climateLayer    = null;
 let imcLayer        = null;
 let refGeoLayer     = null;
-let refData         = null;  // GeoJSON de la capa de referencia en uso
 let searchMarker    = null;
-let selectedFeature = null;  // capa actualmente seleccionada (resaltada)
+let selectedFeature = null;
 
 // ─── Ámbito geográfico: Perú ──────────────────────────────
-// Territorio nacional: referencia para el encuadre y el alejamiento máximo
 const PERU_BOUNDS = L.latLngBounds([-18.60, -81.60], [-0.02, -68.60]);
 
 // ─── Inicializar mapa ─────────────────────────────────────
@@ -60,16 +66,13 @@ const map = L.map("map", {
   bounceAtZoomLimits: false,
 });
 
-// Base cartográfica de OpenStreetMap: aporta relieve, vegetación y
-// topónimos como referencia geográfica.
 const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 14,
   crossOrigin: true,
 }).addTo(map);
 
-// OpenStreetMap rechaza las peticiones sin cabecera Referer, lo que ocurre
-// al abrir el archivo directamente desde el disco. Si eso pasa, se pasa a
-// una base equivalente para que el mapa nunca quede sin fondo.
+// OpenStreetMap rechaza las peticiones sin Referer —abrir el archivo desde
+// el disco—: en ese caso se cambia a una base equivalente.
 let fallosBase = 0;
 baseOSM.on("tileerror", () => {
   if (++fallosBase < 5 || map.hasLayer(baseOSM) === false) return;
@@ -84,15 +87,10 @@ baseOSM.on("tileerror", () => {
   if (attr) attr.textContent = "Base cartográfica © OpenStreetMap · © CARTO";
 });
 
-// El encuadre se recalcula según el tamaño real del contenedor: el Perú
-// siempre se ve completo y centrado, con algo de territorio vecino como
-// referencia geográfica, tanto en computadora como en teléfono.
-// En relieve la perspectiva acerca la imagen: se compensa alejando el mapa
-// para que el territorio siga viéndose completo.
+// El encuadre se recalcula según el tamaño real del contenedor para que el
+// Perú se vea siempre completo. En relieve la perspectiva acerca la imagen
+// y se compensa alejando un nivel, lo que además contiene las descargas.
 function compensacionRelieve() {
-  // Al inclinarse, el lienzo del mapa crece y con él la cantidad de teselas.
-  // Un nivel menos de acercamiento mantiene la vista completa y evita
-  // multiplicar las descargas.
   return document.querySelector(".map-container").classList.contains("relieve") ? 1 : 0;
 }
 
@@ -113,9 +111,8 @@ function ajustarAmbito(reencuadrar) {
   aplicarLimitesNavegacion();
 }
 
-// Margen de desplazamiento: holgado en vista plana y bastante mayor en
-// relieve, donde la inclinación reduce la superficie útil de pantalla.
-// Siempre incluye la vista actual, de modo que el mapa nunca queda descentrado.
+// Margen de desplazamiento: mayor en relieve, donde la inclinación reduce
+// la superficie útil. Siempre incluye la vista actual.
 function aplicarLimitesNavegacion() {
   const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
   const holgura = enRelieve ? 1.6 : 0.7;
@@ -125,7 +122,6 @@ function aplicarLimitesNavegacion() {
 
 ajustarAmbito(true);
 
-// Reencuadre ante rotación o cambio de tamaño de la ventana
 let resizeTimer = null;
 function onViewportChange() {
   clearTimeout(resizeTimer);
@@ -138,10 +134,22 @@ window.addEventListener("orientationchange", () => setTimeout(onViewportChange, 
 document.getElementById("zoomIn").addEventListener("click",  () => map.zoomIn());
 document.getElementById("zoomOut").addEventListener("click", () => map.zoomOut());
 
-// ─── Loader ───────────────────────────────────────────────
-const loader = document.getElementById("mapLoader");
-function showLoader() { loader.style.display = "flex"; }
-function hideLoader() { loader.style.display = "none"; }
+// ─── Indicador de carga ───────────────────────────────────
+const loader     = document.getElementById("mapLoader");
+const loaderText = document.getElementById("loaderTexto");
+
+let cargasEnCurso = 0;
+
+function showLoader(mensaje) {
+  cargasEnCurso++;
+  if (mensaje) loaderText.textContent = mensaje;
+  loader.style.display = "flex";
+}
+
+function hideLoader() {
+  cargasEnCurso = Math.max(0, cargasEnCurso - 1);
+  if (!cargasEnCurso) loader.style.display = "none";
+}
 
 // ─── Helpers de color ─────────────────────────────────────
 function getClimateColor(value, variable) {
@@ -194,20 +202,6 @@ async function fetchGeoJSON(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`No se encontró: ${path}`);
   return res.json();
-}
-
-// ─── Tooltip / popup ─────────────────────────────────────
-function buildTooltip(props, variable, isImc) {
-  const distrito = conTildes(props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE) || "—";
-  const valor    = props.valor != null ? props.valor : null;
-  if (isImc) {
-    const lbl = valor != null ? imcLabel(valor) : "Sin dato";
-    const fmt = valor != null ? parseFloat(valor).toFixed(3) : "—";
-    return `<b>${distrito}</b><br>IMC: ${fmt} <span style="font-weight:700;color:${getImcColor(valor)}">(${lbl})</span>`;
-  }
-  const unit = variable === "pr" ? "%" : "°C";
-  const fmt  = valor != null ? `${parseFloat(valor).toFixed(1)} ${unit}` : "Sin dato";
-  return `<b>${distrito}</b><br>Valor: <b>${fmt}</b>`;
 }
 
 // ─── Interpretaciones textuales ───────────────────────────
@@ -278,12 +272,8 @@ function climateBarConfig(variable, valor) {
   return null;
 }
 
-// ─── Panel de información lateral ─────────────────────────
-
-
 // ─── Ortografía de los topónimos ──────────────────────────
-// Los datos de origen vienen sin tildes; aquí se restituyen para
-// mostrarlos correctamente.
+// Los datos de origen vienen sin tildes.
 const TILDES = {
   // Departamentos
   "ANCASH": "ÁNCASH", "APURIMAC": "APURÍMAC", "HUANUCO": "HUÁNUCO",
@@ -306,24 +296,18 @@ const TILDES = {
   "RODRIGUEZ DE MENDOZA": "RODRÍGUEZ DE MENDOZA", "SAN ROMAN": "SAN ROMÁN",
   "SANCHEZ CARRION": "SÁNCHEZ CARRIÓN", "VICTOR FAJARDO": "VÍCTOR FAJARDO",
   "VILCAS HUAMAN": "VILCAS HUAMÁN", "VIRU": "VIRÚ",
-  // Distritos y capitales de uso frecuente
-  "CAJARURO": "CAJARURO", "LIRCAY": "LIRCAY", "SAN SILVESTRE DE COCHAN": "SAN SILVESTRE DE COCHÁN",
-  "CHUGUR": "CHUGUR", "USQUIL": "USQUIL", "IRAZOLA": "IRAZOLA",
-  "TAHUANIA": "TAHUANÍA", "MAQUIA": "MAQUÍA", "YAUYA": "YAUYA",
-  "CONTAMANA": "CONTAMANA", "REQUENA": "REQUENA", "ZORRITOS": "ZORRITOS",
-  "HUANCAYO": "HUANCAYO", "CHACHAPOYAS": "CHACHAPOYAS",
+  // Distritos
+  "SAN SILVESTRE DE COCHAN": "SAN SILVESTRE DE COCHÁN",
+  "TAHUANIA": "TAHUANÍA", "MAQUIA": "MAQUÍA",
 };
 
 function conTildes(nombre) {
   if (!nombre) return nombre;
   const clave = String(nombre).trim().toUpperCase();
-  return TILDES[clave] || nombre;
+  return TILDES[clave] || String(nombre).replace(/Hidrografica/g, "Hidrográfica");
 }
 
 // ─── Contexto territorial ─────────────────────────────────
-// Determina en qué unidad de la capa de referencia cae un punto, para que el
-// panel informe el departamento, la provincia o la cuenca correspondiente.
-
 function puntoEnAnillo(lat, lon, anillo) {
   let dentro = false;
   for (let i = 0, j = anillo.length - 1; i < anillo.length; j = i++) {
@@ -343,7 +327,6 @@ function puntoEnGeometria(lat, lon, geom) {
                   : [];
   for (const poly of poligonos) {
     if (!poly.length || !puntoEnAnillo(lat, lon, poly[0])) continue;
-    // Se descartan los huecos interiores
     let enHueco = false;
     for (let k = 1; k < poly.length; k++) {
       if (puntoEnAnillo(lat, lon, poly[k])) { enHueco = true; break; }
@@ -353,15 +336,11 @@ function puntoEnGeometria(lat, lon, geom) {
   return false;
 }
 
-function unidadDeReferencia(lat, lon) {
-  if (!refData || lat == null || lon == null) return null;
-  for (const f of refData.features) {
-    if (f.geometry && puntoEnGeometria(lat, lon, f.geometry)) return f.properties;
-  }
-  return null;
+function unidadDeReferencia(punto) {
+  const unidad = localizarUnidad(refGeoLayer, punto);
+  return unidad ? unidad.feature.properties : null;
 }
 
-// Descripción legible de la unidad, según la capa activa
 function describirReferencia(props) {
   if (!props) return null;
   if (state.refLayer === "departamentos") {
@@ -379,7 +358,11 @@ function describirReferencia(props) {
                    props.NOMB_UH_N4 || props.NOMB_UH_N3 || props.NOMB_UH_N2 ||
                    props.NOMB_UH_N1 || props.NOMBRE || "—";
     const region = props.NOMB_UH_N1 && props.NOMB_UH_N1 !== nombre ? props.NOMB_UH_N1 : "";
-    return { etiqueta: "Unidad hidrográfica", valor: nombre, extra: region };
+    return {
+      etiqueta: "Unidad hidrográfica",
+      valor: conTildes(nombre),
+      extra: conTildes(region),
+    };
   }
   return null;
 }
@@ -392,8 +375,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
   const rows = [];
   rows.push({ k: "Distrito", v: distrito });
 
-  // Unidad territorial según la capa de referencia elegida
-  const ref = describirReferencia(punto ? unidadDeReferencia(punto.lat, punto.lng) : null);
+  const ref = describirReferencia(unidadDeReferencia(punto));
   if (ref) {
     rows.push({
       k: ref.etiqueta,
@@ -429,10 +411,9 @@ function construirInfoHTML(props, variable, isImc, punto) {
     };
     interpretHtml = `<div class="info-interpret">${imcDesc[lbl] || ""}</div>`;
   } else {
-    const varNames = { pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima" };
     const unit = variable === "pr" ? "%" : "°C";
     const fmt  = valor != null ? `${valor >= 0 && variable !== "pr" ? "+" : ""}${parseFloat(valor).toFixed(1)} ${unit}` : "Sin dato";
-    rows.push({ k: "Variable", v: varNames[variable] || variable });
+    rows.push({ k: "Variable", v: NOMBRE_VARIABLE[variable] || variable });
     rows.push({ k: "Estación", v: seasonLabel(state.estacion) });
     rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
     rows.push({ k: "Cambio",   v: fmt, highlight: true });
@@ -464,8 +445,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
 }
 
 
-// Punto representativo del polígono: su centro si cae dentro, y si no,
-// un vértice interior. Sirve para ubicar el distrito en la capa de referencia.
+// Centro del polígono si cae dentro; si no, el promedio de sus vértices.
 function puntoRepresentativo(layer) {
   const b = layer.getBounds();
   const c = b.getCenter();
@@ -476,7 +456,6 @@ function puntoRepresentativo(layer) {
                : geom.type === "MultiPolygon" ? geom.coordinates[0]
                : null;
     if (poly && poly[0] && poly[0].length) {
-      // Se promedian los vértices del anillo exterior
       let sx = 0, sy = 0;
       for (const [x, y] of poly[0]) { sx += x; sy += y; }
       const n = poly[0].length;
@@ -488,9 +467,7 @@ function puntoRepresentativo(layer) {
 }
 
 
-// Márgenes que el globo debe respetar: el mapa se desplaza lo necesario
-// para que la información no quede debajo del buscador, de la leyenda ni
-// de los controles de zoom.
+// Márgenes que el globo debe respetar para no quedar bajo los flotantes.
 function margenesLibres() {
   const cont = document.querySelector(".map-container").getBoundingClientRect();
   const visible = el => el && el.offsetParent !== null &&
@@ -516,18 +493,16 @@ function margenesLibres() {
     der = Math.max(der, cont.right - r.left + 18);
   }
 
-  // Se deja sitio para el alto del propio globo
   return { topLeft: [izq, arriba + 40], bottomRight: [der, abajo] };
 }
 
 
 
-// Versión compacta para teléfono: destaca el valor y resume el resto,
-// de modo que la ficha ocupe una fracción de la pantalla.
+// Versión compacta para teléfono: destaca el valor y resume el resto.
 function construirInfoCompacto(props, variable, isImc, punto) {
   const distrito = conTildes(props.DISTRITO || props.NOMBRE) || "—";
   const valor = props.valor != null ? props.valor : null;
-  const ref = describirReferencia(punto ? unidadDeReferencia(punto.lat, punto.lng) : null);
+  const ref = describirReferencia(unidadDeReferencia(punto));
 
   let cifra, etiqueta, color, barra = "", texto = "";
 
@@ -540,12 +515,11 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     const pct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
     barra = `<div class="ic-barra"><div style="width:${pct}%;background:${color}"></div></div>`;
   } else {
-    const nombres = { pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima" };
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
       ? `${valor >= 0 && variable !== "pr" ? "+" : ""}${parseFloat(valor).toFixed(1)} ${unidad}`
       : "Sin dato";
-    etiqueta = `${nombres[variable] || variable} · ${seasonLabel(state.estacion)}`;
+    etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
     const cfg = climateBarConfig(variable, valor);
     color = cfg ? cfg.color : "#888";
     if (cfg) barra = `<div class="ic-barra"><div style="width:${cfg.pct}%;background:${cfg.color}"></div></div>`;
@@ -568,7 +542,6 @@ function construirInfoCompacto(props, variable, isImc, punto) {
 }
 
 
-// Señal breve sobre el territorio consultado, al momento de elegirlo.
 let pulsoActivo = null;
 
 function pulsoEn(punto) {
@@ -587,13 +560,9 @@ function pulsoEn(punto) {
 }
 
 // ─── Indicador de procedencia ─────────────────────────────
-// Señala en el mapa el territorio del que provienen los datos mostrados.
-// El indicador no puede viajar dentro del mapa: al estar este inclinado,
-// la perspectiva lo comprime y lo tuerce de distinta forma según la
-// latitud —muy marcado hacia los extremos norte y sur—. En su lugar se
-// deja en el terreno un ancla sin dimensión y el indicador se dibuja
-// fuera del plano inclinado, siguiendo la posición proyectada de esa
-// ancla. Así se ve siempre recto y del mismo tamaño.
+// Con el mapa inclinado, la perspectiva deforma cualquier marcador según
+// su latitud. El terreno guarda un ancla sin dimensión y el indicador se
+// dibuja fuera del plano, siguiendo su posición proyectada.
 let marcadorSeleccion = null;
 let pinFijo = null;
 let pinSeguimiento = null;
@@ -624,8 +593,6 @@ function marcarSeleccion(punto) {
   seguirAncla();
 }
 
-// La posición se toma del rectángulo del ancla ya proyectado por el
-// navegador, de modo que sirve igual en vista plana y en relieve.
 function seguirAncla() {
   pinSeguimiento = requestAnimationFrame(seguirAncla);
   if (!pinFijo || !marcadorSeleccion) return;
@@ -641,35 +608,93 @@ function seguirAncla() {
   pinFijo.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px)";
 }
 
-// ─── Presentación de la información del punto ─────────────
-// En pantalla amplia y vista plana se muestra como globo anclado al
-// territorio elegido, con su punta apuntando a la selección. En teléfono
-// o en relieve —donde un globo anclado quedaría inclinado— se usa el panel.
+// ─── Consulta de un territorio ────────────────────────────
+// La consulta guarda el punto del territorio, no la unidad de una capa:
+// así sobrevive a los cambios de variable, estación o capa de referencia.
 let infoPopup = null;
+let consulta  = null;
 
-function cerrarInfo() {
-  ultimaConsulta = null;
-  marcarSeleccion(null);
-  document.getElementById("infoPanel").style.display = "none";
-  if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
+function capaActiva() {
+  return state.imcActive ? imcLayer : climateLayer;
 }
 
-let ultimaConsulta = null;
+function localizarUnidad(capa, punto) {
+  if (!capa || !punto) return null;
+  let hallada = null;
+  capa.eachLayer(l => {
+    if (hallada || !l.feature || !l.getBounds) return;
+    if (!l.getBounds().contains(punto)) return;
+    if (puntoEnGeometria(punto.lat, punto.lng, l.feature.geometry)) hallada = l;
+  });
+  return hallada;
+}
 
-function mostrarInfo(props, variable, isImc, punto, ancla) {
-  ultimaConsulta = { props, variable, isImc, punto, ancla };
-  const html = construirInfoHTML(props, variable, isImc, punto);
-  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
-  const anclado = ancla && !enRelieve && window.innerWidth > 768;
+function resaltarUnidad(layer) {
+  const capa = capaActiva();
+  if (selectedFeature && capa) capa.resetStyle(selectedFeature);
+  selectedFeature = layer;
+  layer.setStyle({ weight: 2.5, color: "#1e5bb5", fillOpacity: 0.97, dashArray: null });
+  layer.bringToFront();
+  if (refGeoLayer) refGeoLayer.bringToFront();
+}
 
-  // En relieve el globo quedaría deformado por la perspectiva: la
-  // procedencia se señala con un indicador clavado en el territorio.
-  marcarSeleccion(enRelieve ? punto : null);
+function limpiarSeleccion() {
+  if (!selectedFeature) return;
+  const capa = capaActiva();
+  if (capa) capa.resetStyle(selectedFeature);
+  selectedFeature = null;
+}
+
+function ocultarInfo() {
+  marcarSeleccion(null);
+  document.getElementById("infoPanel").style.display = "none";
+  const abierto = infoPopup;
+  infoPopup = null;
+  if (abierto) map.closePopup(abierto);
+}
+
+function cerrarInfo() {
+  consulta = null;
+  ocultarInfo();
+  limpiarSeleccion();
+}
+
+function consultarUnidad(layer, ancla) {
+  const punto = puntoRepresentativo(layer);
+  consulta = { punto, ancla: ancla || punto };
+  resaltarUnidad(layer);
   pulsoEn(punto);
+  mostrarInfo(layer.feature.properties);
+}
+
+// Vuelve a resolver la consulta vigente sobre las capas actuales.
+function refrescarConsulta() {
+  if (!consulta) return;
+  const unidad = localizarUnidad(capaActiva(), consulta.punto);
+  if (!unidad) { cerrarInfo(); return; }
+  resaltarUnidad(unidad);
+  mostrarInfo(unidad.feature.properties);
+}
+
+// Globo anclado al territorio en pantalla amplia y vista plana; panel en
+// teléfono o en relieve, donde el globo quedaría inclinado.
+function mostrarInfo(props) {
+  if (!consulta) return;
+  const { punto, ancla } = consulta;
+  const isImc    = state.imcActive;
+  const html     = construirInfoHTML(props, state.variable, isImc, punto);
+  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
+  const enTelefono = window.innerWidth <= 768;
+  const anclado  = ancla && !enRelieve && !enTelefono;
+
+  marcarSeleccion(enRelieve ? punto : null);
 
   if (anclado) {
     document.getElementById("infoPanel").style.display = "none";
     const libre = margenesLibres();
+    const abierto = infoPopup;
+    infoPopup = null;
+    if (abierto) map.closePopup(abierto);
     infoPopup = L.popup({
       className: "info-popup",
       maxWidth: 340,
@@ -684,7 +709,6 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
       .setContent(`<div class="info-popup-head">Información del punto</div>
                    <div class="info-popup-body">${html}</div>`)
       .openOn(map);
-    // La leyenda se pliega si el globo se le viene encima
     setTimeout(() => {
       const globo = document.querySelector(".info-popup");
       if (globo) evitarChoqueConLeyenda(globo);
@@ -692,18 +716,21 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
     return;
   }
 
-  if (infoPopup) { map.closePopup(infoPopup); infoPopup = null; }
-  const enTelefono = window.innerWidth <= 768;
-  document.getElementById("infoPanel").classList.remove("extendida");
-  document.getElementById("infoPanelBody").innerHTML =
-    enTelefono ? construirInfoCompacto(props, variable, isImc, punto) : html;
+  const abierto = infoPopup;
+  infoPopup = null;
+  if (abierto) map.closePopup(abierto);
+
   const panel = document.getElementById("infoPanel");
+  panel.classList.remove("extendida");
   panel.classList.toggle("compacto", enTelefono);
-  const floatBox = document.getElementById("mapSearchFloat");
-  if (floatBox && window.innerWidth > 768) {
-    const r1 = floatBox.getBoundingClientRect();
-    const r2 = document.querySelector(".map-container").getBoundingClientRect();
-    panel.style.top = (r1.bottom - r2.top + 10) + "px";
+  document.getElementById("infoPanelBody").innerHTML =
+    enTelefono ? construirInfoCompacto(props, state.variable, isImc, punto) : html;
+
+  const buscador = document.getElementById("mapSearchFloat");
+  if (buscador && !enTelefono) {
+    const r = buscador.getBoundingClientRect();
+    const c = document.querySelector(".map-container").getBoundingClientRect();
+    panel.style.top = (r.bottom - c.top + 10) + "px";
   }
   panel.style.display = "block";
   evitarChoqueConLeyenda(panel);
@@ -717,32 +744,25 @@ function mostrarInfo(props, variable, isImc, punto, ancla) {
   }
 }
 
-// Si el panel y la leyenda se disputan el mismo espacio, la leyenda se
-// pliega: la información consultada nunca debe quedar tapada.
+// Ante un solape, la leyenda se pliega: la información nunca queda tapada.
 function evitarChoqueConLeyenda(elemento) {
   const leyenda = document.getElementById("mapLegend");
   if (!leyenda || leyenda.classList.contains("collapsed")) return;
   const a = elemento.getBoundingClientRect();
   const b = leyenda.getBoundingClientRect();
   const chocan = !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
-  if (chocan) {
-    leyenda.classList.add("collapsed");
-    const btn = document.getElementById("legendToggle");
-    if (btn) {
-      btn.setAttribute("aria-expanded", "false");
-      btn.setAttribute("aria-label", "Desplegar leyenda");
-    }
+  if (!chocan) return;
+  leyenda.classList.add("collapsed");
+  const btn = document.getElementById("legendToggle");
+  if (btn) {
+    btn.setAttribute("aria-expanded", "false");
+    btn.setAttribute("aria-label", "Desplegar leyenda");
   }
 }
 
-document.getElementById("closeInfoPanel").addEventListener("click", () => {
-  cerrarInfo();
-  if (selectedFeature) {
-    const capa = state.imcActive ? imcLayer : climateLayer;
-    if (capa) capa.resetStyle(selectedFeature);
-    selectedFeature = null;
-  }
-});
+map.on("popupclose", e => { if (e.popup === infoPopup) cerrarInfo(); });
+
+document.getElementById("closeInfoPanel").addEventListener("click", cerrarInfo);
 
 // ─── Leyenda ──────────────────────────────────────────────
 function buildClimateLegend(variable) {
@@ -797,10 +817,10 @@ function buildImcLegend() {
 async function loadClimateLayer() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   selectedFeature = null;
-  cerrarInfo();
+  ocultarInfo();
   if (state.imcActive || state.variable === "imc") return;
 
-  showLoader();
+  showLoader(`Cargando ${NOMBRE_VARIABLE[state.variable]} · ${seasonLabel(state.estacion)}`);
   try {
     const data = await fetchGeoJSON(climateFilename(state.variable, state.estacion));
     climateLayer = L.geoJSON(data, {
@@ -819,21 +839,15 @@ async function loadClimateLayer() {
           mouseout(e) {
             if (e.target !== selectedFeature) climateLayer.resetStyle(e.target);
           },
-          click(e) {
-            if (selectedFeature && climateLayer) climateLayer.resetStyle(selectedFeature);
-            selectedFeature = e.target;
-            e.target.setStyle({ weight: 2.5, color: "#1e5bb5", fillOpacity: 0.97, dashArray: null });
-            e.target.bringToFront();
-            if (refGeoLayer) refGeoLayer.bringToFront();
-            const pt = puntoRepresentativo(e.target);
-            mostrarInfo(feat.properties, state.variable, false, pt, e.latlng);
-          },
+          click(e) { consultarUnidad(e.target, e.latlng); },
         });
       },
     }).addTo(map);
     if (refGeoLayer) refGeoLayer.bringToFront();
     buildClimateLegend(state.variable);
+    refrescarConsulta();
   } catch (err) {
+    cerrarInfo();
     console.warn("Capa climática no disponible:", err.message);
     document.getElementById("legendContent").innerHTML = "";
     document.getElementById("mapLegend").classList.add("empty");
@@ -847,10 +861,10 @@ async function loadImcLayer() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   if (imcLayer)     { map.removeLayer(imcLayer);     imcLayer     = null; }
   selectedFeature = null;
-  cerrarInfo();
+  ocultarInfo();
   if (!state.imcActive) { loadClimateLayer(); return; }
 
-  showLoader();
+  showLoader("Cargando Índice Multipeligro · Anual");
   try {
     const data = await fetchGeoJSON(imcFilename(state.imcTipo));
     imcLayer = L.geoJSON(data, {
@@ -869,21 +883,15 @@ async function loadImcLayer() {
           mouseout(e) {
             if (e.target !== selectedFeature) imcLayer.resetStyle(e.target);
           },
-          click(e) {
-            if (selectedFeature && imcLayer) imcLayer.resetStyle(selectedFeature);
-            selectedFeature = e.target;
-            e.target.setStyle({ weight: 2.5, color: "#1e5bb5", fillOpacity: 0.97 });
-            e.target.bringToFront();
-            if (refGeoLayer) refGeoLayer.bringToFront();
-            const pt = puntoRepresentativo(e.target);
-            mostrarInfo(feat.properties, null, true, pt, e.latlng);
-          },
+          click(e) { consultarUnidad(e.target, e.latlng); },
         });
       },
     }).addTo(map);
     if (refGeoLayer) refGeoLayer.bringToFront();
     buildImcLegend();
+    refrescarConsulta();
   } catch (err) {
+    cerrarInfo();
     console.warn("Capa IMC no disponible:", err.message);
     document.getElementById("legendContent").innerHTML = "";
     document.getElementById("mapLegend").classList.add("empty");
@@ -895,23 +903,20 @@ async function loadImcLayer() {
 // ─── Cargar capa de referencia ────────────────────────────
 async function loadRefLayer(key) {
   if (refGeoLayer) { map.removeLayer(refGeoLayer); refGeoLayer = null; }
-  refData = null;
-  if (key === "ninguna") return;
+  if (key === "ninguna") { refrescarConsulta(); return; }
 
+  showLoader(`Cargando ${NOMBRE_REFERENCIA[key] || key}`);
   try {
     const data = await fetchGeoJSON(refFilename(key));
-    refData = data;
     refGeoLayer = L.geoJSON(data, {
-      style: {
-        color: "#1a2a4e",
-        weight: 1.4,
-        fillOpacity: 0,
-        interactive: false,
-      },
+      style: { color: "#1a2a4e", weight: 1.4, fillOpacity: 0, interactive: false },
     }).addTo(map);
     refGeoLayer.bringToFront();
   } catch (err) {
     console.warn("Capa de referencia no disponible:", err.message);
+  } finally {
+    hideLoader();
+    refrescarConsulta();
   }
 }
 
@@ -946,7 +951,7 @@ function setSeasonBlocked(blocked) {
   });
   if (msg) msg.style.display = blocked ? "block" : "none";
 
-  // Si IMC se activa y la estación actual no es anual → forzar anual
+  // El IMC solo existe en escala anual
   if (blocked && state.estacion !== "anual") {
     btns.forEach(b => b.classList.remove("active"));
     document.querySelector('.btn-season[data-value="anual"]').classList.add("active");
@@ -982,6 +987,7 @@ setupRadioGroup("varGroup", value => {
 
 // ─── Capa de referencia (radio exclusivo) ─────────────────
 setupRadioGroup("refLayerGroup", value => {
+  if (state.refLayer === value) return;
   state.refLayer = value;
   loadRefLayer(value);
 });
@@ -1149,8 +1155,6 @@ document.addEventListener("click", e => {
   if (!e.target.closest(".var-info-btn")) removeVarTooltip();
 });
 
-// También se cierra al usar el mapa o al elegir una opción, para que no
-// quede tapando el territorio.
 map.on("click movestart zoomstart", removeVarTooltip);
 ["varGroup", "refLayerGroup", "seasonGroup"].forEach(id => {
   const grupo = document.getElementById(id);
@@ -1160,41 +1164,24 @@ map.on("click movestart zoomstart", removeVarTooltip);
 });
 window.addEventListener("scroll", removeVarTooltip, true);
 
-// ─── Resaltar distrito desde buscador (mejora 7) ──────────
+// ─── Resaltar distrito desde el buscador ──────────────────
+// Si el punto no cae en ningún distrito se toma el de centro más próximo.
 function highlightDistrictAt(lat, lon) {
-  const activeLayer = state.imcActive ? imcLayer : climateLayer;
-  if (!activeLayer) return;
+  const capa = capaActiva();
+  if (!capa) return;
+  const punto = L.latLng(lat, lon);
 
-  let closest = null;
-  let closestDist = Infinity;
-
-  activeLayer.eachLayer(layer => {
-    if (!layer.feature || !layer.feature.geometry) return;
-    try {
-      const bounds = layer.getBounds();
-      if (bounds.contains([lat, lon])) {
-        closest = layer;
-        closestDist = 0;
-        return;
-      }
-      const center = bounds.getCenter();
-      const d = Math.hypot(center.lat - lat, center.lng - lon);
-      if (d < closestDist) { closestDist = d; closest = layer; }
-    } catch (_) {}
-  });
-
-  if (!closest) return;
-
-  // Reset estilo anterior
-  if (selectedFeature) {
-    (state.imcActive ? imcLayer : climateLayer)?.resetStyle(selectedFeature);
+  let unidad = localizarUnidad(capa, punto);
+  if (!unidad) {
+    let menor = Infinity;
+    capa.eachLayer(l => {
+      if (!l.feature || !l.getBounds) return;
+      const c = l.getBounds().getCenter();
+      const d = Math.hypot(c.lat - lat, c.lng - lon);
+      if (d < menor) { menor = d; unidad = l; }
+    });
   }
-  selectedFeature = closest;
-  closest.setStyle({ weight: 2.5, color: "#f7b731", fillOpacity: 0.97, dashArray: null });
-  closest.bringToFront();
-  if (refGeoLayer) refGeoLayer.bringToFront();
-  const pt = puntoRepresentativo(closest);
-  mostrarInfo(closest.feature.properties, state.variable, state.imcActive, pt, L.latLng(lat, lon));
+  if (unidad) consultarUnidad(unidad, punto);
 }
 
 /* =========================================================
@@ -1234,7 +1221,6 @@ sidebarToggle.addEventListener("click", () => {
 sidebarOverlay.addEventListener("click", cerrarSidebar);
 sidebarClose.addEventListener("click", cerrarSidebar);
 
-// Al elegir una opción en móvil, la sidebar se cierra sola y deja ver el mapa
 ["varGroup", "refLayerGroup", "seasonGroup"].forEach(id => {
   const grupo = document.getElementById(id);
   if (!grupo) return;
@@ -1275,8 +1261,6 @@ legendToggle.addEventListener("click", () => {
 });
 
 // ─── Auto-ocultado al explorar el mapa ────────────────────
-// Mientras se arrastra o se hace zoom, los paneles flotantes se desvanecen
-// para liberar la pantalla; reaparecen al soltar.
 let ocultarTimer = null;
 
 function ocultarFlotantes() {
@@ -1300,7 +1284,6 @@ function aplicarModoViewport() {
     mapLegend.classList.add("collapsed");
     legendToggle.setAttribute("aria-expanded", "false");
   } else {
-    // En escritorio la sidebar es fija y el buscador siempre está desplegado
     sidebar.classList.remove("open");
     sidebarOverlay.classList.remove("visible");
     document.body.classList.remove("no-scroll");
@@ -1315,9 +1298,6 @@ MOBILE_QUERY.addEventListener("change", aplicarModoViewport);
 aplicarModoViewport();
 
 // ─── Vista en relieve (perspectiva) ───────────────────────
-// Inclina el mapa para percibir la intensidad del cambio como un terreno.
-// La selección y el panel de información siguen funcionando igual, porque
-// dependen de los datos del polígono y no de la posición en pantalla.
 const btnRelieve   = document.getElementById("btnRelieve");
 const mapContainer = document.querySelector(".map-container");
 
@@ -1326,21 +1306,14 @@ btnRelieve.addEventListener("click", () => {
   btnRelieve.classList.toggle("active", activo);
   btnRelieve.setAttribute("aria-pressed", String(activo));
   btnRelieve.title = activo ? "Volver a vista plana" : "Vista en relieve";
-  // El globo abierto se deforma dentro del mapa inclinado: se cierra y la
-  // consulta se vuelve a presentar en el formato adecuado a la nueva vista.
-  const consulta = ultimaConsulta;
-  cerrarInfo();
-  if (consulta) {
-    mostrarInfo(consulta.props, consulta.variable, consulta.isImc,
-                consulta.punto, consulta.ancla);
-  }
 
-  // El reencuadre espera a que el nuevo tamaño del lienzo esté aplicado
+  ocultarInfo();
+  refrescarConsulta();
+
   requestAnimationFrame(() => setTimeout(() => ajustarAmbito(true), 60));
 });
 
 // ─── Pantalla completa ────────────────────────────────────
-// Aprovecha toda la pantalla, tanto en computadora como en teléfono.
 const btnPantalla = document.getElementById("btnPantalla");
 
 function enPantallaCompleta() {
@@ -1348,9 +1321,8 @@ function enPantallaCompleta() {
          document.body.classList.contains("inmersivo");
 }
 
-// Algunos navegadores de teléfono —Safari en iPhone— no permiten pantalla
-// completa a una página. Ahí se recurre a un modo inmersivo propio, que
-// retira la barra superior y el pie para dejar el mapa a toda la pantalla.
+// Safari en iPhone no expone la API de pantalla completa: allí se recurre
+// a un modo inmersivo propio que retira la barra superior y el pie.
 function admitePantallaCompleta() {
   const raiz = document.documentElement;
   return !!(raiz.requestFullscreen || raiz.webkitRequestFullscreen);
@@ -1387,7 +1359,6 @@ function refrescarBotonPantalla() {
     expandir.style.display = activo ? "none" : "";
     contraer.style.display = activo ? "" : "none";
   }
-  // El mapa se reajusta al nuevo tamaño de pantalla
   setTimeout(() => ajustarAmbito(true), 220);
 }
 
@@ -1398,5 +1369,4 @@ document.addEventListener("webkitfullscreenchange", refrescarBotonPantalla);
 refrescarBotonPantalla();
 
 // ─── Carga inicial ────────────────────────────────────────
-loadClimateLayer();
-loadRefLayer("departamentos");
+Promise.all([loadRefLayer(state.refLayer), loadClimateLayer()]);

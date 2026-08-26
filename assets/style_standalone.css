@@ -1602,37 +1602,98 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   white-space: nowrap;
 }
 
-/* Loader */
+/* =========================================================
+   INDICADOR DE CARGA
+   El territorio se dibuja y se llena con la escala de la variable:
+   la espera anticipa lo que se está preparando.
+   ========================================================= */
 .map-loader {
   position: absolute;
   inset: 0;
   z-index: 1000;
-  background: rgba(240,243,248,0.88);
+  background: rgba(233,238,246,0.82);
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  backdrop-filter: blur(2px);
+  gap: 16px;
+  animation: loaderEntra 0.2s ease both;
 }
 
-.map-loader span {
-  font-size: 0.85rem;
+.loader-peru {
+  width: 96px;
+  height: 96px;
+  overflow: visible;
+  filter: drop-shadow(0 6px 14px rgba(11,30,76,0.22));
+}
+
+.loader-base {
+  fill: #c3cfe2;
+  opacity: 0.45;
+}
+
+/* La escala sube de sur a norte, como el avance de la lectura del dato */
+.loader-marea {
+  fill: url(#loaderEscala);
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: loaderMarea 2.1s cubic-bezier(0.45,0,0.25,1) infinite;
+}
+
+.loader-contorno {
+  fill: none;
+  stroke: #163a72;
+  stroke-width: 9;
+  stroke-linejoin: round;
+  stroke-dasharray: 2600;
+  animation: loaderTrazo 2.1s ease-in-out infinite;
+}
+
+.loader-texto {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: var(--azul);
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.4px;
+  text-align: center;
+  padding: 0 20px;
 }
 
-.spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid var(--azul-light);
-  border-top-color: var(--azul);
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+.loader-texto::after {
+  content: "";
+  animation: loaderPuntos 1.4s steps(4, end) infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes loaderEntra { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes loaderMarea {
+  0%   { transform: translateY(512px); }
+  55%  { transform: translateY(0); }
+  100% { transform: translateY(-512px); }
+}
+
+@keyframes loaderTrazo {
+  0%   { stroke-dashoffset: 2600; }
+  45%  { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 0; }
+}
+
+@keyframes loaderPuntos {
+  0%   { content: ""; }
+  25%  { content: "."; }
+  50%  { content: ".."; }
+  75%  { content: "..."; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-marea,
+  .loader-contorno,
+  .loader-texto::after { animation: none; }
+  .loader-contorno { stroke-dashoffset: 0; }
+  .loader-marea { transform: translateY(0); }
+}
 
 /* =========================================================
    FOOTER
