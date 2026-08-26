@@ -79,10 +79,10 @@ html, body {
   top: 0; left: 0; right: 0;
   height: var(--navbar-h);
   background: linear-gradient(90deg,
-              rgba(13,27,62,0.88) 0%,
-              rgba(26,47,92,0.86) 30%,
-              rgba(44,65,114,0.84) 60%,
-              rgba(74,85,104,0.82) 100%);
+              rgba(10,28,72,0.90) 0%,
+              rgba(16,46,106,0.88) 32%,
+              rgba(22,62,130,0.86) 65%,
+              rgba(28,78,152,0.84) 100%);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   display: flex;
@@ -242,14 +242,14 @@ html, body {
   min-width: var(--sidebar-w);
   /* Acabado traslúcido: el mapa se insinúa detrás del panel */
   background: linear-gradient(180deg,
-              rgba(26,42,78,0.66) 0%,
-              rgba(36,51,88,0.63) 35%,
-              rgba(46,63,102,0.60) 65%,
-              rgba(61,77,110,0.58) 85%,
-              rgba(74,85,104,0.56) 100%);
-  backdrop-filter: blur(26px) saturate(170%);
-  -webkit-backdrop-filter: blur(26px) saturate(170%);
-  border-right: 3px solid #2d5494;
+              rgba(11,30,76,0.80) 0%,
+              rgba(16,44,102,0.76) 30%,
+              rgba(21,58,124,0.72) 58%,
+              rgba(26,72,146,0.68) 82%,
+              rgba(31,86,164,0.64) 100%);
+  backdrop-filter: blur(26px) saturate(190%);
+  -webkit-backdrop-filter: blur(26px) saturate(190%);
+  border-right: 3px solid rgba(58,116,196,0.85);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 14px 12px 20px 12px;
@@ -980,6 +980,38 @@ html, body {
   color: var(--azul);
 }
 
+/* =========================================================
+   MODO INMERSIVO
+   Alternativa a la pantalla completa donde el navegador no la
+   permite: el mapa ocupa toda la ventana.
+   ========================================================= */
+body.inmersivo .navbar,
+body.inmersivo .footer { display: none; }
+
+body.inmersivo .layout {
+  margin-top: 0;
+  height: 100vh;
+}
+
+body.inmersivo .sidebar { top: 0; }
+
+/* El acceso a los controles se mantiene, flotando sobre el mapa */
+body.inmersivo .sidebar-toggle {
+  top: max(12px, env(safe-area-inset-top));
+  left: 12px;
+  z-index: 1200;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: rgba(154,175,204,0.6);
+  box-shadow: 0 3px 12px rgba(0,20,70,0.28);
+}
+
+body.inmersivo .sidebar-toggle .hamburger span { background: var(--azul); }
+
+body.inmersivo .search-fab,
+body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) + 58px)); }
+
 /* Botón de pantalla completa */
 .btn-pantalla {
   margin-top: 6px;
@@ -1596,9 +1628,9 @@ html, body {
   bottom: 0; left: 0; right: 0;
   height: var(--footer-h);
   background: linear-gradient(90deg,
-              rgba(13,27,62,0.88) 0%,
-              rgba(26,47,92,0.86) 50%,
-              rgba(74,85,104,0.84) 100%);
+              rgba(10,28,72,0.90) 0%,
+              rgba(18,50,112,0.88) 50%,
+              rgba(26,72,142,0.86) 100%);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   display: flex;
@@ -1695,11 +1727,16 @@ html, body {
    ========================================================= */
 
 /* ── Botón hamburguesa (solo móvil) ── */
+/* Vive fuera de la barra superior para seguir disponible cuando esta se
+   retira en el modo inmersivo. */
 .sidebar-toggle {
   display: none;
+  position: fixed;
+  top: 6px;
+  left: 10px;
+  z-index: 1150;
   width: 44px;
   height: 44px;
-  margin-right: 4px;
   background: rgba(255,255,255,0.10);
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 9px;
@@ -1903,8 +1940,8 @@ body.no-scroll { overflow: hidden; }
 
   /* ── Navbar compacta ── */
   .navbar {
-    padding: 0 10px;
-    padding-left: max(10px, env(safe-area-inset-left));
+    padding: 0 10px 0 62px;
+    padding-left: max(62px, calc(env(safe-area-inset-left) + 56px));
     padding-right: max(10px, env(safe-area-inset-right));
     animation: fadeInDown 0.4s ease both;   /* sin brillo continuo: ahorra batería */
   }
@@ -1914,15 +1951,15 @@ body.no-scroll { overflow: hidden; }
   .sidebar-toggle { display: flex; }
 
   .navbar-brand { gap: 8px; }
-  .navbar-logo { height: 34px; padding: 3px 5px; }
-  .navbar-logo-minam { height: 26px; }
+  .navbar-logo { height: 42px; padding: 0; }
+  .navbar-logo-minam { display: none; }
   .navbar-divider { display: none; }
   .navbar-title { display: none; }
   .navbar-subtitle { display: none; }
   .navbar-badge { font-size: 0.5rem; padding: 3px 7px; }
 
   .brand-mark { gap: 1px; animation: fadeInDown 0.4s ease both; }
-  .brand-name { font-size: 1.95rem; letter-spacing: 0.6px; margin-left: 10px; }
+  .brand-name { font-size: 1.95rem; letter-spacing: 0.6px; margin-left: 18px; }
 
   /* ── Sidebar deslizable ── */
   .sidebar-overlay { display: block; }
@@ -1948,6 +1985,11 @@ body.no-scroll { overflow: hidden; }
 
   .sidebar.open { transform: translateX(0); }
   .sidebar-section { animation: none; }     /* sin escalonado: abre al instante */
+
+  /* En teléfono el aviso de cada variable estorba más de lo que aporta:
+     se retira el botón y su recuadro. */
+  .var-info-btn { display: none; }
+  .var-tooltip { display: none !important; }
 
   /* Áreas táctiles cómodas */
   .radio-card { padding: 11px 12px; min-height: 48px; }
@@ -2083,8 +2125,8 @@ body.no-scroll { overflow: hidden; }
 
 /* ── Teléfonos estrechos ── */
 @media (max-width: 400px) {
-  .brand-name { font-size: 1.82rem; margin-left: 8px; }
-  .navbar-logo { height: 30px; }
+  .brand-name { font-size: 1.82rem; margin-left: 14px; }
+  .navbar-logo { height: 38px; }
   .map-legend { max-width: 72vw; }
 }
 

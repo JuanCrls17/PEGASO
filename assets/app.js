@@ -1313,18 +1313,36 @@ btnRelieve.addEventListener("click", () => {
 const btnPantalla = document.getElementById("btnPantalla");
 
 function enPantallaCompleta() {
-  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  return !!(document.fullscreenElement || document.webkitFullscreenElement) ||
+         document.body.classList.contains("inmersivo");
+}
+
+// Algunos navegadores de teléfono —Safari en iPhone— no permiten pantalla
+// completa a una página. Ahí se recurre a un modo inmersivo propio, que
+// retira la barra superior y el pie para dejar el mapa a toda la pantalla.
+function admitePantallaCompleta() {
+  const raiz = document.documentElement;
+  return !!(raiz.requestFullscreen || raiz.webkitRequestFullscreen);
 }
 
 function alternarPantallaCompleta() {
   const raiz = document.documentElement;
-  if (!enPantallaCompleta()) {
-    const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
-    if (pedir) pedir.call(raiz).catch(() => {});
-  } else {
-    const salir = document.exitFullscreen || document.webkitExitFullscreen;
-    if (salir) salir.call(document).catch(() => {});
+  if (admitePantallaCompleta()) {
+    if (!enPantallaCompleta()) {
+      const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
+      pedir.call(raiz).catch(() => activarInmersivo());
+    } else {
+      const salir = document.exitFullscreen || document.webkitExitFullscreen;
+      if (salir) salir.call(document).catch(() => {});
+    }
+    return;
   }
+  activarInmersivo();
+}
+
+function activarInmersivo() {
+  document.body.classList.toggle("inmersivo");
+  refrescarBotonPantalla();
 }
 
 function refrescarBotonPantalla() {
@@ -1346,11 +1364,7 @@ btnPantalla.addEventListener("click", alternarPantallaCompleta);
 document.addEventListener("fullscreenchange", refrescarBotonPantalla);
 document.addEventListener("webkitfullscreenchange", refrescarBotonPantalla);
 
-// En iOS la pantalla completa no está disponible: el botón se retira
-if (!(document.documentElement.requestFullscreen ||
-      document.documentElement.webkitRequestFullscreen)) {
-  btnPantalla.style.display = "none";
-}
+refrescarBotonPantalla();
 
 // ─── Carga inicial ────────────────────────────────────────
 loadClimateLayer();
