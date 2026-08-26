@@ -507,7 +507,7 @@ function margenesLibres() {
   const leyenda = document.getElementById("mapLegend");
   if (visible(leyenda)) {
     const r = leyenda.getBoundingClientRect();
-    izq = Math.max(izq, r.right - cont.left + 18);
+    der = Math.max(der, cont.right - r.left + 18);
   }
 
   const zoom = document.getElementById("zoomCtrl");
@@ -588,26 +588,57 @@ function pulsoEn(punto) {
 
 // ─── Indicador de procedencia ─────────────────────────────
 // Señala en el mapa el territorio del que provienen los datos mostrados.
+// El indicador no puede viajar dentro del mapa: al estar este inclinado,
+// la perspectiva lo comprime y lo tuerce de distinta forma según la
+// latitud —muy marcado hacia los extremos norte y sur—. En su lugar se
+// deja en el terreno un ancla sin dimensión y el indicador se dibuja
+// fuera del plano inclinado, siguiendo la posición proyectada de esa
+// ancla. Así se ve siempre recto y del mismo tamaño.
 let marcadorSeleccion = null;
+let pinFijo = null;
+let pinSeguimiento = null;
+
+const PIN_SVG =
+  '<svg viewBox="0 0 24 34" width="29" height="41" aria-hidden="true">' +
+  '<path d="M12 1.6c5.2 0 9.4 4.2 9.4 9.4 0 6.9-9.4 21.4-9.4 21.4S2.6 17.9 2.6 11c0-5.2 4.2-9.4 9.4-9.4z" ' +
+  'fill="#2f7fe0" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>' +
+  '<circle cx="12" cy="11" r="3.7" fill="#ffffff"/></svg>';
 
 function marcarSeleccion(punto) {
+  if (pinSeguimiento) { cancelAnimationFrame(pinSeguimiento); pinSeguimiento = null; }
   if (marcadorSeleccion) { map.removeLayer(marcadorSeleccion); marcadorSeleccion = null; }
+  if (pinFijo) { pinFijo.remove(); pinFijo = null; }
   if (!punto) return;
+
   marcadorSeleccion = L.marker(punto, {
-    icon: L.divIcon({
-      className: "pin-seleccion",
-      html: '<span class="pin-wrap">' +
-            '<svg viewBox="0 0 24 34" width="29" height="41" aria-hidden="true">' +
-            '<path d="M12 1.6c5.2 0 9.4 4.2 9.4 9.4 0 6.9-9.4 21.4-9.4 21.4S2.6 17.9 2.6 11c0-5.2 4.2-9.4 9.4-9.4z" ' +
-            'fill="#2f7fe0" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>' +
-            '<circle cx="12" cy="11" r="3.7" fill="#ffffff"/></svg></span>',
-      iconSize: [29, 41],
-      iconAnchor: [14.5, 41],
-    }),
+    icon: L.divIcon({ className: "pin-ancla", html: "", iconSize: [0, 0], iconAnchor: [0, 0] }),
     interactive: false,
     keyboard: false,
     zIndexOffset: 1000,
   }).addTo(map);
+
+  pinFijo = document.createElement("div");
+  pinFijo.className = "pin-fijo";
+  pinFijo.innerHTML = '<span class="pin-fijo-cuerpo">' + PIN_SVG + "</span>";
+  document.querySelector(".map-container").appendChild(pinFijo);
+  seguirAncla();
+}
+
+// La posición se toma del rectángulo del ancla ya proyectado por el
+// navegador, de modo que sirve igual en vista plana y en relieve.
+function seguirAncla() {
+  pinSeguimiento = requestAnimationFrame(seguirAncla);
+  if (!pinFijo || !marcadorSeleccion) return;
+  const ancla = marcadorSeleccion.getElement();
+  if (!ancla) return;
+  const cont = document.querySelector(".map-container").getBoundingClientRect();
+  const r = ancla.getBoundingClientRect();
+  const x = r.left + r.width / 2 - cont.left;
+  const y = r.top + r.height / 2 - cont.top;
+  const aLaVista = Number.isFinite(x) && Number.isFinite(y) &&
+                   x > -60 && x < cont.width + 60 && y > -80 && y < cont.height + 60;
+  pinFijo.style.visibility = aLaVista ? "visible" : "hidden";
+  pinFijo.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px)";
 }
 
 // ─── Presentación de la información del punto ─────────────

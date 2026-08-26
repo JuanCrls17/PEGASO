@@ -1103,37 +1103,51 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
    se desplaza para dejarle sitio, nunca debe quedar tapado. */
 .leaflet-popup-pane { z-index: 960; }
 
-/* Con el mapa inclinado, el globo se endereza para resultar legible;
-   su punta continúa apuntando al territorio seleccionado. */
-/* Indicador clavado en el territorio del que provienen los datos.
-   La inclinación se aplica al envoltorio, no al elemento que Leaflet
-   posiciona, para no descolocar el marcador. */
-.pin-seleccion { pointer-events: none; }
+/* Indicador del territorio del que provienen los datos.
+   Se dibuja fuera del plano del mapa —lo sigue por posición, no por
+   transformación— para que la perspectiva del relieve no lo comprima
+   ni lo tuerza hacia los extremos norte y sur. */
+.pin-ancla { pointer-events: none; }
 
-.pin-wrap {
-  display: block;
-  transform-origin: bottom center;
-  filter: drop-shadow(0 3px 5px rgba(8,20,45,0.45));
+.pin-fijo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 700;
+  pointer-events: none;
+  will-change: transform;
 }
 
-.map-container.relieve .pin-wrap { transform: scaleY(1.624); }
+.pin-fijo-cuerpo {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: block;
+  transform: translate(-50%, 0);
+  filter: drop-shadow(0 3px 5px rgba(8,20,45,0.45));
+  animation: pinAterriza 0.34s cubic-bezier(0.22,1.4,0.4,1) both;
+}
 
-/* Sombra proyectada sobre el terreno, que asienta el indicador */
-.map-container.relieve .pin-wrap::after {
+/* Sombra achatada en la base, que asienta el indicador sobre el terreno */
+.pin-fijo-cuerpo::after {
   content: "";
   position: absolute;
   left: 50%;
   bottom: -3px;
-  width: 16px;
-  height: 5px;
-  margin-left: -8px;
+  width: 17px;
+  height: 6px;
+  margin-left: -8.5px;
   border-radius: 50%;
-  background: rgba(8,20,45,0.35);
+  background: rgba(8,20,45,0.32);
   filter: blur(2px);
-  transform: rotateX(52deg) translateZ(-2px);
 }
 
-.pin-wrap svg { display: block; }
+.pin-fijo-cuerpo svg { display: block; }
+
+@keyframes pinAterriza {
+  from { transform: translate(-50%, -14px) scale(0.7); opacity: 0; }
+  to   { transform: translate(-50%, 0) scale(1);       opacity: 1; }
+}
 
 /* Señal de selección: anillos que se expanden sobre el territorio elegido */
 .pulso-seleccion { pointer-events: none; }
@@ -1528,7 +1542,7 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
 .map-legend {
   position: absolute;
   bottom: 20px;
-  left: 16px;
+  right: 16px;
   border-radius: 16px;
   z-index: 900;
   background: rgba(228,236,247,0.55);
@@ -2093,7 +2107,7 @@ body.no-scroll { overflow: hidden; }
   /* ── Leyenda compacta ── */
   .map-legend {
     bottom: 10px;
-    left: 10px;
+    right: 10px;
     max-width: 62vw;
     max-height: 40vh;
     font-size: 0.9em;
