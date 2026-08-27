@@ -37,13 +37,14 @@
   <!-- ===================== NAVBAR ===================== -->
   <header class="navbar">
     <div class="navbar-brand">
+      <img src="assets/Minam.png" alt="MINAM" class="navbar-logo-minam" />
+      <div class="navbar-divider"></div>
       <img src="assets/logo_senamhi.png" alt="SENAMHI" class="navbar-logo" />
       <div class="navbar-divider"></div>
       <div class="brand-mark">
-        <span class="brand-name" aria-label="PEGASO">PEG<svg class="brand-a" viewBox="0 0 72 70" aria-hidden="true"><path d="M0 70 27 0h18l27 70H55L36 18 17 70Z"/></svg>SO</span>
+        <button type="button" class="brand-name" id="brandName"
+                aria-label="PEGASO" aria-describedby="brandTooltip" aria-expanded="false">PEG<svg class="brand-a" viewBox="0 0 72 70" aria-hidden="true"><path d="M0 70 27 0h18l27 70H55L36 18 17 70Z"/></svg>SO</button>
       </div>
-      <div class="navbar-divider"></div>
-      <img src="assets/Minam.png" alt="MINAM" class="navbar-logo-minam" />
       <div class="navbar-divider"></div>
       <div class="navbar-titles">
         <span class="navbar-title">Plataforma de Escenarios de Cambio Climático para la Gestión y la Adaptación en los Servicios Sectoriales</span>
@@ -51,8 +52,11 @@
       </div>
     </div>
     <div class="navbar-right">
-      <span class="navbar-badge">BETA</span>
+      <!-- En teléfono el MINAM se traslada al extremo derecho de la barra -->
+      <img src="assets/Minam.png" alt="MINAM" class="navbar-logo-minam-movil" />
     </div>
+    <!-- Nombre completo: en teléfono no cabe en primer plano, se muestra al tocar PEGASO -->
+    <span class="brand-tooltip" id="brandTooltip" role="tooltip">Plataforma de Escenarios de Cambio Climático para la Gestión y la Adaptación en los Servicios Sectoriales</span>
   </header>
 
   <!-- ===================== LAYOUT PRINCIPAL ===================== -->

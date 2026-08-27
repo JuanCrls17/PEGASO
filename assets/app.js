@@ -1074,6 +1074,8 @@ placeInput.addEventListener("input", () => {
           hideSuggestions();
           placeSearchMarker(lat, lon, name);
           highlightDistrictAt(lat, lon);
+          // Elegido el lugar, el buscador ya cumplió: vuelve a ser lupa
+          if (esMovil()) cerrarBuscador();
         });
       });
     } catch {
@@ -1250,6 +1252,37 @@ function cerrarBuscador() {
 searchFab.addEventListener("click", abrirBuscador);
 msfCollapse.addEventListener("click", cerrarBuscador);
 
+// ─── Nombre completo de PEGASO (solo teléfono) ────────────
+// En pantalla pequeña el título no cabe en primer plano: al tocar la
+// marca se despliega un globo bajo la barra con el nombre completo.
+const brandName    = document.getElementById("brandName");
+const brandTooltip = document.getElementById("brandTooltip");
+let   brandTimer   = null;
+
+function cerrarNombreCompleto() {
+  clearTimeout(brandTimer);
+  brandTooltip.classList.remove("visible");
+  brandName.setAttribute("aria-expanded", "false");
+}
+
+function alternarNombreCompleto() {
+  if (brandTooltip.classList.contains("visible")) { cerrarNombreCompleto(); return; }
+  brandTooltip.classList.add("visible");
+  brandName.setAttribute("aria-expanded", "true");
+  clearTimeout(brandTimer);
+  brandTimer = setTimeout(cerrarNombreCompleto, 5000);   // se retira solo
+}
+
+brandName.addEventListener("click", e => {
+  if (!esMovil()) return;
+  e.stopPropagation();
+  alternarNombreCompleto();
+});
+
+// Se cierra al tocar en cualquier otro sitio o al empezar a usar el mapa
+document.addEventListener("click", cerrarNombreCompleto);
+document.addEventListener("keydown", e => { if (e.key === "Escape") cerrarNombreCompleto(); });
+
 // ─── Leyenda plegable ─────────────────────────────────────
 const mapLegend    = document.getElementById("mapLegend");
 const legendToggle = document.getElementById("legendToggle");
@@ -1266,6 +1299,7 @@ let ocultarTimer = null;
 function ocultarFlotantes() {
   clearTimeout(ocultarTimer);
   document.body.classList.add("map-interacting");
+  cerrarNombreCompleto();
 }
 
 function mostrarFlotantes() {
@@ -1291,6 +1325,7 @@ function aplicarModoViewport() {
     searchFab.classList.remove("hidden");
     mapLegend.classList.remove("collapsed");
     legendToggle.setAttribute("aria-expanded", "true");
+    cerrarNombreCompleto();
   }
 }
 
