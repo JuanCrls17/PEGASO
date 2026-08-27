@@ -1304,11 +1304,13 @@ function ocultarFlotantes() {
 
 function mostrarFlotantes() {
   clearTimeout(ocultarTimer);
-  ocultarTimer = setTimeout(() => document.body.classList.remove("map-interacting"), 420);
+  // Espera mínima: solo evita el parpadeo entre gestos encadenados
+  ocultarTimer = setTimeout(() => document.body.classList.remove("map-interacting"), 70);
 }
 
 map.on("movestart zoomstart", ocultarFlotantes);
-map.on("moveend zoomend",     mostrarFlotantes);
+// dragend llega al soltar el dedo; moveend esperaría a que acabe la inercia
+map.on("dragend moveend zoomend", mostrarFlotantes);
 
 // ─── Ajustes al cambiar entre móvil y escritorio ──────────
 function aplicarModoViewport() {

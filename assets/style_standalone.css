@@ -2244,14 +2244,13 @@ body.no-scroll { overflow: hidden; }
     font-size: 0.9em;
   }
 
-  /* ── Los flotantes se atenúan mientras se explora el mapa ── */
+  /* Lo que se apoya sobre el mapa se desvanece mientras se desliza
+     —la leyenda, la lupa y la ficha del punto— y vuelve en cuanto se
+     suelta. El buscador desplegado se mantiene: allí se está escribiendo. */
   .map-legend,
   .map-info-panel,
-  .search-fab { transition: opacity 0.3s ease; }
+  .search-fab { transition: opacity 0.14s ease-out; }
 
-  /* Todo lo que se apoya sobre el mapa se desvanece mientras se desliza
-     —la leyenda, la lupa y la ficha del punto— y vuelve al soltar.
-     El buscador desplegado se mantiene: allí se está escribiendo. */
   body.map-interacting .map-legend,
   body.map-interacting .map-info-panel,
   body.map-interacting .search-fab {
