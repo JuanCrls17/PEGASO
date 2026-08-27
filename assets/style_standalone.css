@@ -2245,11 +2245,12 @@ body.no-scroll { overflow: hidden; }
   }
 
   /* Lo que se apoya sobre el mapa se desvanece mientras se desliza
-     —la leyenda, la lupa y la ficha del punto— y vuelve en cuanto se
-     suelta. El buscador desplegado se mantiene: allí se está escribiendo. */
+     —la leyenda, la lupa y la ficha del punto—. Al soltar vuelve de
+     inmediato, sin arrastre: la atenuación solo acompaña al gesto.
+     El buscador desplegado se mantiene: allí se está escribiendo. */
   .map-legend,
   .map-info-panel,
-  .search-fab { transition: opacity 0.14s ease-out; }
+  .search-fab { transition: none; }
 
   body.map-interacting .map-legend,
   body.map-interacting .map-info-panel,

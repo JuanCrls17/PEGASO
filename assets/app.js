@@ -1294,18 +1294,13 @@ legendToggle.addEventListener("click", () => {
 });
 
 // ─── Auto-ocultado al explorar el mapa ────────────────────
-let ocultarTimer = null;
-
 function ocultarFlotantes() {
-  clearTimeout(ocultarTimer);
   document.body.classList.add("map-interacting");
   cerrarNombreCompleto();
 }
 
 function mostrarFlotantes() {
-  clearTimeout(ocultarTimer);
-  // Espera mínima: solo evita el parpadeo entre gestos encadenados
-  ocultarTimer = setTimeout(() => document.body.classList.remove("map-interacting"), 70);
+  document.body.classList.remove("map-interacting");
 }
 
 map.on("movestart zoomstart", ocultarFlotantes);
