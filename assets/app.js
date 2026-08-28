@@ -33,6 +33,22 @@ const IMC_COLORS = {
   "Bajo":     "#9bc68b",
 };
 
+// El amarillo y el verde del mapa no tienen contraste suficiente como
+// texto sobre el fondo claro de la ficha: allí se usa una versión oscura.
+const IMC_COLORS_TEXTO = {
+  "Muy Alto": "#c0141a",
+  "Alto":     "#c47410",
+  "Medio":    "#8a7a00",
+  "Bajo":     "#3f7d46",
+};
+
+const IMC_DESC = {
+  "Muy Alto": "Este territorio tiene <strong>exposición crítica</strong> a múltiples peligros climáticos simultáneos. Se recomienda planificación urgente de adaptación.",
+  "Alto":     "Alta concurrencia de amenazas climáticas. Requiere <strong>medidas de adaptación</strong> en los sectores más vulnerables.",
+  "Medio":    "Exposición <strong>moderada</strong> a peligros climáticos. Monitoreo continuo y planificación preventiva recomendados.",
+  "Bajo":     "Baja exposición relativa a peligros climáticos en comparación con otras zonas del país.",
+};
+
 // ─── Estado de la aplicación ──────────────────────────────
 const state = {
   variable:  "pr",     // "pr" | "tasmax" | "tasmin" | "imc"
@@ -48,6 +64,8 @@ let imcLayer        = null;
 let refGeoLayer     = null;
 let searchMarker    = null;
 let selectedFeature = null;
+
+const mapContainer = document.querySelector(".map-container");
 
 // ─── Ámbito geográfico: Perú ──────────────────────────────
 const PERU_BOUNDS = L.latLngBounds([-18.60, -81.60], [-0.02, -68.60]);
@@ -90,8 +108,12 @@ baseOSM.on("tileerror", () => {
 // El encuadre se recalcula según el tamaño real del contenedor para que el
 // Perú se vea siempre completo. En relieve la perspectiva acerca la imagen
 // y se compensa alejando un nivel, lo que además contiene las descargas.
+function enRelieve() {
+  return mapContainer.classList.contains("relieve");
+}
+
 function compensacionRelieve() {
-  return document.querySelector(".map-container").classList.contains("relieve") ? 1 : 0;
+  return enRelieve() ? 1 : 0;
 }
 
 function ajustarAmbito(reencuadrar) {
@@ -114,8 +136,7 @@ function ajustarAmbito(reencuadrar) {
 // Margen de desplazamiento: mayor en relieve, donde la inclinación reduce
 // la superficie útil. Siempre incluye la vista actual.
 function aplicarLimitesNavegacion() {
-  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
-  const holgura = enRelieve ? 1.6 : 0.7;
+  const holgura = enRelieve() ? 1.6 : 0.7;
   const limites = PERU_BOUNDS.pad(holgura).extend(map.getBounds().pad(0.2));
   map.setMaxBounds(limites);
 }
@@ -254,6 +275,12 @@ function climateInterpret(variable, valor) {
   return null;
 }
 
+// El signo positivo se explicita en temperatura, donde un aumento es la
+// lectura relevante; el negativo ya lo pone el propio número.
+function signo(valor, variable) {
+  return variable !== "pr" && parseFloat(valor) >= 0 ? "+" : "";
+}
+
 function climateBarConfig(variable, valor) {
   if (valor == null) return null;
   const v = parseFloat(valor);
@@ -368,22 +395,17 @@ function describirReferencia(props) {
 }
 
 function construirInfoHTML(props, variable, isImc, punto) {
-  const distrito = conTildes(props.DISTRITO || props.DEPARTAMEN || props.PROVINCIA || props.NOMBRE) || "—";
-  const dpto     = conTildes(props.DEPARTAMEN || props.DPTO) || "";
+  const distrito = conTildes(props.DISTRITO || props.NOMBRE) || "—";
   const valor    = props.valor != null ? props.valor : null;
 
-  const rows = [];
-  rows.push({ k: "Distrito", v: distrito });
+  const rows = [{ k: "Distrito", v: distrito }];
 
   const ref = describirReferencia(unidadDeReferencia(punto));
   if (ref) {
     rows.push({
       k: ref.etiqueta,
       v: ref.extra ? `${ref.valor}<br><small style="color:#8a94a6">${ref.extra}</small>` : ref.valor,
-      raw: true,
     });
-  } else if (dpto) {
-    rows.push({ k: "Departamento", v: dpto });
   }
 
   let barHtml = "";
@@ -392,27 +414,21 @@ function construirInfoHTML(props, variable, isImc, punto) {
   if (isImc) {
     const lbl = valor != null ? imcLabel(valor) : "Sin dato";
     const fmt = valor != null ? parseFloat(valor).toFixed(3) : "—";
-    const imcColors = { "Muy Alto": "#d7191c", "Alto": "#f7941d", "Medio": "#c8b800", "Bajo": "#4a9a50" };
-    const imcPct    = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
-    rows.push({ k: "Categoría", v: `<span style="font-weight:700;color:${imcColors[lbl]||'#888'}">${lbl}</span>`, raw: true });
+    const tinte  = IMC_COLORS_TEXTO[lbl] || "#888";
+    const imcPct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
+    rows.push({ k: "Categoría", v: `<span style="font-weight:700;color:${tinte}">${lbl}</span>` });
     rows.push({ k: "Valor IMC", v: fmt, highlight: true });
     barHtml = `
       <div class="info-value-bar-wrap">
         <div class="info-value-bar-label"><span>Nivel de peligro</span><span>${fmt}</span></div>
         <div class="info-value-bar-track">
-          <div class="info-value-bar-fill" style="width:${imcPct}%;background:${imcColors[lbl]||'#888'}"></div>
+          <div class="info-value-bar-fill" style="width:${imcPct}%;background:${IMC_COLORS[lbl] || "#888"}"></div>
         </div>
       </div>`;
-    const imcDesc = {
-      "Muy Alto": "Este territorio tiene <strong>exposición crítica</strong> a múltiples peligros climáticos simultáneos. Se recomienda planificación urgente de adaptación.",
-      "Alto":     "Alta concurrencia de amenazas climáticas. Requiere <strong>medidas de adaptación</strong> en los sectores más vulnerables.",
-      "Medio":    "Exposición <strong>moderada</strong> a peligros climáticos. Monitoreo continuo y planificación preventiva recomendados.",
-      "Bajo":     "Baja exposición relativa a peligros climáticos en comparación con otras zonas del país.",
-    };
-    interpretHtml = `<div class="info-interpret">${imcDesc[lbl] || ""}</div>`;
+    interpretHtml = `<div class="info-interpret">${IMC_DESC[lbl] || ""}</div>`;
   } else {
     const unit = variable === "pr" ? "%" : "°C";
-    const fmt  = valor != null ? `${valor >= 0 && variable !== "pr" ? "+" : ""}${parseFloat(valor).toFixed(1)} ${unit}` : "Sin dato";
+    const fmt  = valor != null ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unit}` : "Sin dato";
     rows.push({ k: "Variable", v: NOMBRE_VARIABLE[variable] || variable });
     rows.push({ k: "Estación", v: seasonLabel(state.estacion) });
     rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
@@ -469,7 +485,7 @@ function puntoRepresentativo(layer) {
 
 // Márgenes que el globo debe respetar para no quedar bajo los flotantes.
 function margenesLibres() {
-  const cont = document.querySelector(".map-container").getBoundingClientRect();
+  const cont = mapContainer.getBoundingClientRect();
   const visible = el => el && el.offsetParent !== null &&
                         getComputedStyle(el).visibility !== "hidden";
 
@@ -508,16 +524,15 @@ function construirInfoCompacto(props, variable, isImc, punto) {
 
   if (isImc) {
     const lbl = valor != null ? imcLabel(valor) : "Sin dato";
-    const colores = { "Muy Alto": "#d7191c", "Alto": "#f7941d", "Medio": "#c8b800", "Bajo": "#4a9a50" };
-    color = colores[lbl] || "#888";
+    color = IMC_COLORS_TEXTO[lbl] || "#888";
     cifra = valor != null ? parseFloat(valor).toFixed(3) : "—";
     etiqueta = `Índice Multipeligro · ${lbl}`;
     const pct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
-    barra = `<div class="ic-barra"><div style="width:${pct}%;background:${color}"></div></div>`;
+    barra = `<div class="ic-barra"><div style="width:${pct}%;background:${IMC_COLORS[lbl] || "#888"}"></div></div>`;
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
-      ? `${valor >= 0 && variable !== "pr" ? "+" : ""}${parseFloat(valor).toFixed(1)} ${unidad}`
+      ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unidad}`
       : "Sin dato";
     etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
     const cfg = climateBarConfig(variable, valor);
@@ -589,16 +604,16 @@ function marcarSeleccion(punto) {
   pinFijo = document.createElement("div");
   pinFijo.className = "pin-fijo";
   pinFijo.innerHTML = '<span class="pin-fijo-cuerpo">' + PIN_SVG + "</span>";
-  document.querySelector(".map-container").appendChild(pinFijo);
+  mapContainer.appendChild(pinFijo);
   seguirAncla();
 }
 
 function seguirAncla() {
+  if (!pinFijo || !marcadorSeleccion) { pinSeguimiento = null; return; }
   pinSeguimiento = requestAnimationFrame(seguirAncla);
-  if (!pinFijo || !marcadorSeleccion) return;
   const ancla = marcadorSeleccion.getElement();
   if (!ancla) return;
-  const cont = document.querySelector(".map-container").getBoundingClientRect();
+  const cont = mapContainer.getBoundingClientRect();
   const r = ancla.getBoundingClientRect();
   const x = r.left + r.width / 2 - cont.left;
   const y = r.top + r.height / 2 - cont.top;
@@ -683,11 +698,11 @@ function mostrarInfo(props) {
   const { punto, ancla } = consulta;
   const isImc    = state.imcActive;
   const html     = construirInfoHTML(props, state.variable, isImc, punto);
-  const enRelieve = document.querySelector(".map-container").classList.contains("relieve");
+  const inclinado  = enRelieve();
   const enTelefono = window.innerWidth <= 768;
-  const anclado  = ancla && !enRelieve && !enTelefono;
+  const anclado    = ancla && !inclinado && !enTelefono;
 
-  marcarSeleccion(enRelieve ? punto : null);
+  marcarSeleccion(inclinado ? punto : null);
 
   if (anclado) {
     document.getElementById("infoPanel").style.display = "none";
@@ -729,7 +744,7 @@ function mostrarInfo(props) {
   const buscador = document.getElementById("mapSearchFloat");
   if (buscador && !enTelefono) {
     const r = buscador.getBoundingClientRect();
-    const c = document.querySelector(".map-container").getBoundingClientRect();
+    const c = mapContainer.getBoundingClientRect();
     panel.style.top = (r.bottom - c.top + 10) + "px";
   }
   panel.style.display = "block";
@@ -793,19 +808,19 @@ function buildImcLegend() {
   const el = document.getElementById("legendContent");
   document.getElementById("mapLegend").classList.remove("empty");
   const items = [
-    ["Muy Alto", "≥ 0.75", "#d7191c", "Exposición crítica a múltiples peligros climáticos"],
-    ["Alto",     "0.50–0.75", "#f7941d", "Alta concurrencia de amenazas climáticas"],
-    ["Medio",    "0.25–0.50", "#f1dd00", "Exposición moderada a peligros climáticos"],
-    ["Bajo",     "< 0.25",    "#9bc68b", "Baja exposición a peligros climáticos"],
-  ].map(([cat, rng, c, desc]) =>
+    ["Muy Alto", "≥ 0.75",    "Exposición crítica a múltiples peligros climáticos"],
+    ["Alto",     "0.50–0.75", "Alta concurrencia de amenazas climáticas"],
+    ["Medio",    "0.25–0.50", "Exposición moderada a peligros climáticos"],
+    ["Bajo",     "< 0.25",    "Baja exposición a peligros climáticos"],
+  ].map(([cat, rng, desc]) => { const c = IMC_COLORS[cat]; return (
     `<div class="legend-item" style="align-items:flex-start; margin-bottom:8px;">
       <span class="legend-swatch" style="background:${c}; margin-top:3px; flex-shrink:0;"></span>
       <span style="display:flex; flex-direction:column; gap:1px;">
         <span class="legend-label" style="font-weight:700; color:#1a2236;">${cat} <span style="font-weight:400; color:#888;">(${rng})</span></span>
         <span style="font-size:0.62rem; color:#6b7a8d; line-height:1.3;">${desc}</span>
       </span>
-    </div>`
-  ).join("");
+    </div>`);
+  }).join("");
 
   el.innerHTML = `
     <div class="legend-title">Índice Multipeligro Climático</div>
@@ -813,67 +828,46 @@ function buildImcLegend() {
     ${items}`;
 }
 
-// ─── Cargar/refrescar capa climática ─────────────────────
-async function loadClimateLayer() {
-  if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
-  selectedFeature = null;
-  ocultarInfo();
-  if (state.imcActive || state.variable === "imc") return;
+// ─── Cargar/refrescar la capa de datos ────────────────────
+// Una sola vía para la capa climática y la del índice: se diferencian en
+// el archivo, el color y el trazo, no en el procedimiento.
+const ESTILO_CLIMA = { color: "#555",    weight: 0.3, fillOpacity: 0.85 };
+const ESTILO_IMC   = { color: "#5e005e", weight: 0.5, fillOpacity: 0.82 };
 
-  showLoader(`Cargando ${NOMBRE_VARIABLE[state.variable]} · ${seasonLabel(state.estacion)}`);
-  try {
-    const data = await fetchGeoJSON(climateFilename(state.variable, state.estacion));
-    climateLayer = L.geoJSON(data, {
-      style: feat => ({
-        fillColor: getClimateColor(feat.properties.valor, state.variable),
-        fillOpacity: 0.85,
-        color: "#555",
-        weight: 0.3,
-      }),
-      onEachFeature: (feat, layer) => {
-        layer.on({
-          mouseover(e) {
-            if (e.target !== selectedFeature)
-              e.target.setStyle({ weight: 1.8, color: "#3a6ea8", fillOpacity: 0.95 });
-          },
-          mouseout(e) {
-            if (e.target !== selectedFeature) climateLayer.resetStyle(e.target);
-          },
-          click(e) { consultarUnidad(e.target, e.latlng); },
-        });
-      },
-    }).addTo(map);
-    if (refGeoLayer) refGeoLayer.bringToFront();
-    buildClimateLegend(state.variable);
-    refrescarConsulta();
-  } catch (err) {
-    cerrarInfo();
-    console.warn("Capa climática no disponible:", err.message);
-    document.getElementById("legendContent").innerHTML = "";
-    document.getElementById("mapLegend").classList.add("empty");
-  } finally {
-    hideLoader();
-  }
-}
+// Cada petición lleva número de orden: si al resolverse ya hay otra
+// posterior en marcha, el resultado se descarta. Sin esto, cambiar de
+// variable dos veces seguidas dejaba capas superpuestas y la leyenda
+// podía quedar describiendo un dato que no era el pintado.
+let generacionDatos = 0;
 
-// ─── Cargar/refrescar capa IMC ────────────────────────────
-async function loadImcLayer() {
+function quitarCapasDeDatos() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   if (imcLayer)     { map.removeLayer(imcLayer);     imcLayer     = null; }
   selectedFeature = null;
-  ocultarInfo();
-  if (!state.imcActive) { loadClimateLayer(); return; }
+}
 
-  showLoader("Cargando Índice Multipeligro · Anual");
+async function cargarDatos() {
+  const generacion = ++generacionDatos;
+  quitarCapasDeDatos();
+  ocultarInfo();
+
+  const esImc = state.imcActive;
+  const archivo = esImc ? imcFilename(state.imcTipo)
+                        : climateFilename(state.variable, state.estacion);
+  showLoader(esImc
+    ? `Cargando ${NOMBRE_VARIABLE.imc} · Anual`
+    : `Cargando ${NOMBRE_VARIABLE[state.variable]} · ${seasonLabel(state.estacion)}`);
+
   try {
-    const data = await fetchGeoJSON(imcFilename(state.imcTipo));
-    imcLayer = L.geoJSON(data, {
-      style: feat => ({
-        fillColor: getImcColor(feat.properties.valor),
-        fillOpacity: 0.82,
-        color: "#5e005e",
-        weight: 0.5,
-      }),
+    const data = await fetchGeoJSON(archivo);
+    if (generacion !== generacionDatos) return;
+
+    const base = esImc ? ESTILO_IMC : ESTILO_CLIMA;
+    const capa = L.geoJSON(data, {
+      style: feat => Object.assign({
+        fillColor: esImc ? getImcColor(feat.properties.valor)
+                         : getClimateColor(feat.properties.valor, state.variable),
+      }, base),
       onEachFeature: (feat, layer) => {
         layer.on({
           mouseover(e) {
@@ -881,18 +875,21 @@ async function loadImcLayer() {
               e.target.setStyle({ weight: 1.8, color: "#3a6ea8", fillOpacity: 0.95 });
           },
           mouseout(e) {
-            if (e.target !== selectedFeature) imcLayer.resetStyle(e.target);
+            if (e.target !== selectedFeature) capa.resetStyle(e.target);
           },
           click(e) { consultarUnidad(e.target, e.latlng); },
         });
       },
     }).addTo(map);
+
+    if (esImc) imcLayer = capa; else climateLayer = capa;
     if (refGeoLayer) refGeoLayer.bringToFront();
-    buildImcLegend();
+    if (esImc) buildImcLegend(); else buildClimateLegend(state.variable);
     refrescarConsulta();
   } catch (err) {
+    if (generacion !== generacionDatos) return;
     cerrarInfo();
-    console.warn("Capa IMC no disponible:", err.message);
+    console.warn("Capa de datos no disponible:", err.message);
     document.getElementById("legendContent").innerHTML = "";
     document.getElementById("mapLegend").classList.add("empty");
   } finally {
@@ -901,13 +898,17 @@ async function loadImcLayer() {
 }
 
 // ─── Cargar capa de referencia ────────────────────────────
-async function loadRefLayer(key) {
+let generacionRef = 0;
+
+async function cargarReferencia(key) {
+  const generacion = ++generacionRef;
   if (refGeoLayer) { map.removeLayer(refGeoLayer); refGeoLayer = null; }
   if (key === "ninguna") { refrescarConsulta(); return; }
 
   showLoader(`Cargando ${NOMBRE_REFERENCIA[key] || key}`);
   try {
     const data = await fetchGeoJSON(refFilename(key));
+    if (generacion !== generacionRef) return;
     refGeoLayer = L.geoJSON(data, {
       style: { color: "#1a2a4e", weight: 1.4, fillOpacity: 0, interactive: false },
     }).addTo(map);
@@ -916,7 +917,7 @@ async function loadRefLayer(key) {
     console.warn("Capa de referencia no disponible:", err.message);
   } finally {
     hideLoader();
-    refrescarConsulta();
+    if (generacion === generacionRef) refrescarConsulta();
   }
 }
 
@@ -966,30 +967,24 @@ document.querySelectorAll(".btn-season").forEach(btn => {
     document.querySelectorAll(".btn-season").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     state.estacion = btn.dataset.value;
-    loadClimateLayer();
+    cargarDatos();
   });
 });
 
 // ─── Variable climática (incluye IMC como opción) ─────────
 setupRadioGroup("varGroup", value => {
-  if (value === "imc") {
-    state.imcActive = true;
-    state.variable  = "imc";
-    setSeasonBlocked(true);
-    loadImcLayer();
-  } else {
-    state.imcActive = false;
-    state.variable  = value;
-    setSeasonBlocked(false);
-    loadClimateLayer();
-  }
+  if (state.variable === value) return;
+  state.imcActive = value === "imc";
+  state.variable  = value;
+  setSeasonBlocked(state.imcActive);
+  cargarDatos();
 });
 
 // ─── Capa de referencia (radio exclusivo) ─────────────────
 setupRadioGroup("refLayerGroup", value => {
   if (state.refLayer === value) return;
   state.refLayer = value;
-  loadRefLayer(value);
+  cargarReferencia(value);
 });
 
 // ─── Marcador de búsqueda ─────────────────────────────────
@@ -1012,6 +1007,13 @@ const placeInput       = document.getElementById("placeInput");
 const placeSuggestions = document.getElementById("placeSuggestions");
 const placeClearBtn    = document.getElementById("placeClearBtn");
 let   searchTimer      = null;
+
+// El nombre buscado y las respuestas de Nominatim son texto ajeno: se
+// escapan antes de insertarlos, o un apóstrofo basta para romper la lista.
+function escaparHTML(txt) {
+  return String(txt).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
 
 function hideSuggestions() {
   placeSuggestions.innerHTML = "";
@@ -1043,7 +1045,7 @@ placeInput.addEventListener("input", () => {
       if (!data.length) {
         showSuggestions(`<div class="place-suggestions-empty">
           <div class="place-suggestions-empty-icon">🔍</div>
-          <div class="place-suggestions-empty-text">Sin resultados para "<strong>${q}</strong>"<br>Intenta con otro nombre</div>
+          <div class="place-suggestions-empty-text">Sin resultados para "<strong>${escaparHTML(q)}</strong>"<br>Intenta con otro nombre</div>
         </div>`);
         return;
       }
@@ -1053,11 +1055,12 @@ placeInput.addEventListener("input", () => {
         const name   = parts[0].trim();
         const detail = parts.slice(1, 3).join(",").trim();
         return `<div class="place-suggestion-item"
-                  data-lat="${item.lat}" data-lon="${item.lon}" data-name="${name}">
+                  data-lat="${parseFloat(item.lat)}" data-lon="${parseFloat(item.lon)}"
+                  data-name="${escaparHTML(name)}">
           <div class="place-suggestion-pin-wrap">📍</div>
           <div>
-            <div class="place-suggestion-name">${name}</div>
-            <div class="place-suggestion-detail">${detail}</div>
+            <div class="place-suggestion-name">${escaparHTML(name)}</div>
+            <div class="place-suggestion-detail">${escaparHTML(detail)}</div>
           </div>
         </div>`;
       }).join("");
@@ -1112,7 +1115,14 @@ document.getElementById("btnBuscar").addEventListener("click", () => {
     alert("Coordenadas no válidas. Latitud: −90 a 90 · Longitud: −180 a 180");
     return;
   }
+  // Fuera del ámbito el mapa no puede desplazarse y la búsqueda quedaría
+  // sin efecto aparente
+  if (!PERU_BOUNDS.contains([lat, lon])) {
+    alert("Las coordenadas quedan fuera del territorio peruano.");
+    return;
+  }
   placeSearchMarker(lat, lon);
+  highlightDistrictAt(lat, lon);
 });
 
 // ─── Botones de información de variable (?) ───────────────
@@ -1330,8 +1340,7 @@ MOBILE_QUERY.addEventListener("change", aplicarModoViewport);
 aplicarModoViewport();
 
 // ─── Vista en relieve (perspectiva) ───────────────────────
-const btnRelieve   = document.getElementById("btnRelieve");
-const mapContainer = document.querySelector(".map-container");
+const btnRelieve = document.getElementById("btnRelieve");
 
 btnRelieve.addEventListener("click", () => {
   const activo = mapContainer.classList.toggle("relieve");
@@ -1362,21 +1371,25 @@ function admitePantallaCompleta() {
 
 function alternarPantallaCompleta() {
   const raiz = document.documentElement;
-  if (admitePantallaCompleta()) {
-    if (!enPantallaCompleta()) {
-      const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
-      pedir.call(raiz).catch(() => activarInmersivo());
-    } else {
-      const salir = document.exitFullscreen || document.webkitExitFullscreen;
-      if (salir) salir.call(document).catch(() => {});
-    }
+
+  // Si se entró por el modo propio, por ahí se sale
+  if (document.body.classList.contains("inmersivo")) { activarInmersivo(); return; }
+
+  if (!admitePantallaCompleta()) { activarInmersivo(); return; }
+
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    const salir = document.exitFullscreen || document.webkitExitFullscreen;
+    if (salir) Promise.resolve(salir.call(document)).catch(() => {});
     return;
   }
-  activarInmersivo();
+
+  const pedir = raiz.requestFullscreen || raiz.webkitRequestFullscreen;
+  Promise.resolve(pedir.call(raiz)).catch(() => activarInmersivo());
 }
 
 function activarInmersivo() {
   document.body.classList.toggle("inmersivo");
+  map.invalidateSize({ animate: false });
   refrescarBotonPantalla();
 }
 
@@ -1401,4 +1414,4 @@ document.addEventListener("webkitfullscreenchange", refrescarBotonPantalla);
 refrescarBotonPantalla();
 
 // ─── Carga inicial ────────────────────────────────────────
-Promise.all([loadRefLayer(state.refLayer), loadClimateLayer()]);
+Promise.all([cargarReferencia(state.refLayer), cargarDatos()]);
