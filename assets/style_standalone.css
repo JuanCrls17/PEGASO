@@ -177,7 +177,12 @@ html, body {
   margin: 0;
   cursor: default;
   -webkit-tap-highlight-color: transparent;
+  position: relative;
 }
+
+/* Pista de que el nombre esconde algo más. Solo en teléfono, donde el
+   título completo no cabe en la barra; se retira al descubrirlo. */
+.brand-pista { display: none; }
 
 .brand-name:focus-visible {
   outline: 2px solid rgba(255,255,255,0.65);
@@ -1251,6 +1256,7 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
 }
 
 .ic-barra {
+  position: relative;
   height: 6px;
   border-radius: 3px;
   background: #e8ecf2;
@@ -1258,7 +1264,23 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   margin: 9px 0 6px;
 }
 
-.ic-barra > div { height: 100%; border-radius: 3px; }
+.ic-barra > div {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  min-width: 3px;
+  border-radius: 3px;
+}
+
+.ic-barra-cero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  margin-left: -0.5px;
+  background: #9aa8bd;
+  z-index: 1;
+}
 
 .ic-periodo {
   font-size: 0.58rem;
@@ -1397,9 +1419,24 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   position: relative;
 }
 .info-value-bar-fill {
+  position: absolute;
+  top: 0;
   height: 100%;
+  min-width: 3px;
   border-radius: 4px;
-  transition: width 0.5s cubic-bezier(0.22,1,0.36,1);
+  transition: width 0.5s cubic-bezier(0.22,1,0.36,1),
+              left  0.5s cubic-bezier(0.22,1,0.36,1);
+}
+
+/* Marca del cero: el trazo nace aquí y crece hacia el lado del cambio */
+.info-value-bar-cero {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  margin-left: -0.5px;
+  background: #97a6bd;
+  z-index: 1;
 }
 .info-interpret {
   margin-top: 7px;
@@ -1986,6 +2023,34 @@ body.no-scroll { overflow: hidden; }
   }
 
   .brand-mark { gap: 1px; animation: fadeInDown 0.4s ease both; }
+
+  .brand-pista {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: -3px;
+    right: -15px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.42);
+    color: rgba(255,255,255,0.92);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    text-shadow: none;
+    animation: pistaLatido 2.6s ease-in-out 1.2s 3;
+  }
+
+  .brand-mark.descubierto .brand-pista { display: none; }
+
+  @keyframes pistaLatido {
+    0%, 100%  { transform: scale(1);    background: rgba(255,255,255,0.16); }
+    50%       { transform: scale(1.18); background: rgba(255,255,255,0.34); }
+  }
   .brand-name {
     font-size: 1.9rem;
     letter-spacing: 0.5px;

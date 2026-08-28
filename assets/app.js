@@ -281,20 +281,35 @@ function signo(valor, variable) {
   return variable !== "pr" && parseFloat(valor) >= 0 ? "+" : "";
 }
 
+// La barra describe el cambio, no una magnitud absoluta. En precipitación
+// el cambio tiene dos sentidos: el cero está en el centro y el trazo crece
+// hacia el lado que corresponde, de modo que su largo sea la magnitud real.
+// En temperatura, donde toda la escala es aumento, crece desde el origen.
 function climateBarConfig(variable, valor) {
   if (valor == null) return null;
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
 
   if (variable === "pr") {
-    const pct = Math.min(100, Math.max(0, ((v + 100) / 200) * 100));
-    const color = v < 0 ? "#b85c00" : "#2a8a50";
-    return { pct, color, minLabel: "−100%", maxLabel: "+100%", midLabel: "0%" };
+    const tope = 100;
+    const largo = Math.min(50, (Math.abs(v) / tope) * 50);
+    return {
+      inicio: v < 0 ? 50 - largo : 50,
+      largo,
+      cero: 50,
+      color: v < 0 ? "#b85c00" : "#2a8a50",
+      minLabel: "−100%", maxLabel: "+100%", midLabel: "0%",
+    };
   }
   if (variable === "tasmax" || variable === "tasmin") {
-    const pct = Math.min(100, Math.max(0, (v / 4.0) * 100));
-    const color = v < 1.0 ? "#f0a020" : v < 2.0 ? "#e05010" : "#a01010";
-    return { pct, color, minLabel: "0°C", maxLabel: "+4°C", midLabel: "+2°C" };
+    const largo = Math.min(100, Math.max(0, (v / 4.0) * 100));
+    return {
+      inicio: 0,
+      largo,
+      cero: null,
+      color: v < 1.0 ? "#f0a020" : v < 2.0 ? "#e05010" : "#a01010",
+      minLabel: "0°C", maxLabel: "+4°C", midLabel: "+2°C",
+    };
   }
   return null;
 }
@@ -422,7 +437,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
       <div class="info-value-bar-wrap">
         <div class="info-value-bar-label"><span>Nivel de peligro</span><span>${fmt}</span></div>
         <div class="info-value-bar-track">
-          <div class="info-value-bar-fill" style="width:${imcPct}%;background:${IMC_COLORS[lbl] || "#888"}"></div>
+          <div class="info-value-bar-fill" style="left:0;width:${imcPct}%;background:${IMC_COLORS[lbl] || "#888"}"></div>
         </div>
       </div>`;
     interpretHtml = `<div class="info-interpret">${IMC_DESC[lbl] || ""}</div>`;
@@ -444,7 +459,8 @@ function construirInfoHTML(props, variable, isImc, punto) {
             <span>${bar.maxLabel}</span>
           </div>
           <div class="info-value-bar-track">
-            <div class="info-value-bar-fill" style="width:${bar.pct}%;background:${bar.color}"></div>
+            ${bar.cero != null ? `<span class="info-value-bar-cero" style="left:${bar.cero}%"></span>` : ""}
+            <div class="info-value-bar-fill" style="left:${bar.inicio}%;width:${bar.largo}%;background:${bar.color}"></div>
           </div>
         </div>`;
     }
@@ -528,7 +544,7 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     cifra = valor != null ? parseFloat(valor).toFixed(3) : "—";
     etiqueta = `Índice Multipeligro · ${lbl}`;
     const pct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
-    barra = `<div class="ic-barra"><div style="width:${pct}%;background:${IMC_COLORS[lbl] || "#888"}"></div></div>`;
+    barra = `<div class="ic-barra"><div style="left:0;width:${pct}%;background:${IMC_COLORS[lbl] || "#888"}"></div></div>`;
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
@@ -537,7 +553,9 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
     const cfg = climateBarConfig(variable, valor);
     color = cfg ? cfg.color : "#888";
-    if (cfg) barra = `<div class="ic-barra"><div style="width:${cfg.pct}%;background:${cfg.color}"></div></div>`;
+    if (cfg) barra = `<div class="ic-barra">
+      ${cfg.cero != null ? `<span class="ic-barra-cero" style="left:${cfg.cero}%"></span>` : ""}
+      <div style="left:${cfg.inicio}%;width:${cfg.largo}%;background:${cfg.color}"></div></div>`;
     const interp = climateInterpret(variable, valor);
     if (interp) texto = interp.text;
   }
@@ -1277,6 +1295,8 @@ function cerrarNombreCompleto() {
 
 function alternarNombreCompleto() {
   if (brandTooltip.classList.contains("visible")) { cerrarNombreCompleto(); return; }
+  // Descubierto el nombre completo, la pista ya no hace falta
+  brandName.closest(".brand-mark").classList.add("descubierto");
   brandTooltip.classList.add("visible");
   brandName.setAttribute("aria-expanded", "true");
   clearTimeout(brandTimer);
