@@ -75,10 +75,11 @@
         <span>Controles</span>
       </div>
 
-      <!-- Sección: Variable climática + IMC -->
+      <!-- Sección: Capa de datos — variables medidas e índices derivados -->
       <div class="sidebar-section">
-        <div class="section-label">Variable climática</div>
+        <div class="section-label">Capa de datos</div>
         <div class="radio-group" id="varGroup">
+          <div class="group-sublabel">Variables climáticas</div>
           <label class="radio-card active" data-value="pr">
             <span class="radio-dot"></span>
             <span class="radio-icon icon-pr">
@@ -128,8 +129,8 @@
               <span class="radio-desc">Cambio proyectado (°C)</span>
             </div>
           </label>
-          <!-- IMC como opción dentro del grupo de variables -->
-          <label class="radio-card imc-card" data-value="imc">
+          <div class="group-sublabel">Índices derivados</div>
+          <label class="radio-card" data-value="imc">
             <span class="radio-dot"></span>
             <span class="radio-icon icon-imc">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -146,6 +147,39 @@
               <span class="radio-desc">Solo disponible · Anual</span>
             </div>
           </label>
+          <!-- Los cuatro cortes se despliegan debajo solo con esta elegida -->
+          <label class="radio-card" data-value="indices">
+            <span class="radio-dot"></span>
+            <span class="radio-icon icon-indices">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11.4 13.6V5.2a2.2 2.2 0 0 0-4.4 0v8.4a4 4 0 1 0 4.4 0z" stroke="#ffffff" stroke-width="1.7" stroke-linejoin="round"/><circle cx="9.2" cy="16.9" r="2.1" fill="#3b8fe8"/><path d="M9.2 15V7.6" stroke="#3b8fe8" stroke-width="1.9" stroke-linecap="round"/><path d="M17.7 10V3.5M15.6 5.6l2.1-2.1 2.1 2.1" stroke="#3b8fe8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17.7 14v6.5M15.6 18.4l2.1 2.1 2.1-2.1" stroke="#3b8fe8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </span>
+            <div style="flex:1;min-width:0;">
+              <span class="radio-title">Índices extremos <button class="var-info-btn" data-var="indices" tabindex="-1">?</button></span>
+              <span class="radio-desc">Extremos del período (°C)</span>
+            </div>
+          </label>
+        </div>
+        <div class="indice-panel" id="indicePanel" hidden>
+            <button class="indice-op active" data-value="txx" title="Máximo de la temperatura máxima diaria: el día más caluroso del período">
+              <span class="indice-icono"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="7.8" cy="12" r="3.3" stroke="currentColor" stroke-width="1.7"/><path d="M7.8 5.7v1.9M7.8 16.4v1.9M1.5 12h1.9M12.2 12h1.9M3.3 7.5l1.35 1.35M11 15.2l1.35 1.35M12.3 7.5l-1.35 1.35M4.65 15.2L3.3 16.55" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19.4 19.4V5.4M15.9 8.9l3.5-3.5 3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="indice-nombre">Día más cálido</span>
+              <span class="indice-cod">TXx</span>
+            </button>
+            <button class="indice-op" data-value="txn" title="Mínimo de la temperatura máxima diaria: el día más fresco del período">
+              <span class="indice-icono"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="7.8" cy="12" r="3.3" stroke="currentColor" stroke-width="1.7"/><path d="M7.8 5.7v1.9M7.8 16.4v1.9M1.5 12h1.9M12.2 12h1.9M3.3 7.5l1.35 1.35M11 15.2l1.35 1.35M12.3 7.5l-1.35 1.35M4.65 15.2L3.3 16.55" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19.4 5.4v14M15.9 15.9l3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="indice-nombre">Día más fresco</span>
+              <span class="indice-cod">TXn</span>
+            </button>
+            <button class="indice-op" data-value="tnx" title="Máximo de la temperatura mínima diaria: la noche más cálida del período">
+              <span class="indice-icono"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.1 5.3a6.7 6.7 0 1 0 5.1 8.6 5.9 5.9 0 0 1-5.1-8.6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M19.4 19.4V5.4M15.9 8.9l3.5-3.5 3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="indice-nombre">Noche más cálida</span>
+              <span class="indice-cod">TNx</span>
+            </button>
+            <button class="indice-op" data-value="tnn" title="Mínimo de la temperatura mínima diaria: la noche más fría del período">
+              <span class="indice-icono"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9.1 5.3a6.7 6.7 0 1 0 5.1 8.6 5.9 5.9 0 0 1-5.1-8.6z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M19.4 5.4v14M15.9 15.9l3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              <span class="indice-nombre">Noche más fría</span>
+              <span class="indice-cod">TNn</span>
+            </button>
         </div>
       </div>
 

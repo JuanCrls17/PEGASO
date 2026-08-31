@@ -10,14 +10,30 @@ SENAMHI · MINAM — Escenario SSP5-8.5 CMIP6 · Resolución 5 km · Período 20
 Visor web interactivo de las proyecciones de cambio climático para el Perú a nivel distrital,
 orientado a la gestión y la adaptación en los servicios sectoriales.
 
-## Variables disponibles
+## Capas de datos
+
+### Variables climáticas
 
 | Variable | Descripción | Períodos |
 |---|---|---|
 | Precipitación (`pr`) | Cambio relativo (%) | Anual · Verano · Otoño · Invierno · Primavera |
 | Temperatura máxima (`tasmax`) | Cambio proyectado (°C) | Anual · Verano · Otoño · Invierno · Primavera |
 | Temperatura mínima (`tasmin`) | Cambio proyectado (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+
+### Índices derivados
+
+| Índice | Descripción | Períodos |
+|---|---|---|
 | Índice Multipeligro (IMC) | Índice multipeligro agrícola | Solo Anual |
+| Día más cálido (`TXx`) | Máximo de la temperatura máxima diaria (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+| Día más fresco (`TXn`) | Mínimo de la temperatura máxima diaria (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+| Noche más cálida (`TNx`) | Máximo de la temperatura mínima diaria (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+| Noche más fría (`TNn`) | Mínimo de la temperatura mínima diaria (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+
+Los cuatro índices extremos siguen la definición del ETCCDI y describen el
+extremo del período, no su promedio. Comparten una única capa de geometría
+(`data/distritos.geojson`) y publican solo los valores en `data/indices/`,
+de modo que cambiar de índice descarga 13 KB y no 2,6 MB.
 
 Capas de referencia: departamentos (25), provincias (196) y cuencas (231 unidades hidrográficas).
 

@@ -1,5 +1,10 @@
 # ── Datos ──
 # (todos los GeoJSON en data/ son los simplificados y sí van al repo)
+#
+# Las mallas NetCDF de origen son 84 MB y el sitio no las sirve: de ellas
+# sale data/indices/, que pesa 256 KB. Se quedan fuera del repo.
+INDICES_EXTREMOS_CLIMATICOS/
+*.nc
 
 # ── Python ──
 __pycache__/

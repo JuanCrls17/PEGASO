@@ -20,6 +20,25 @@ const TEMP_COLORS = [
 
 const NOMBRE_VARIABLE = {
   pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima", imc: "Índice Multipeligro",
+  txx: "Día más cálido", txn: "Día más fresco",
+  tnx: "Noche más cálida", tnn: "Noche más fría",
+};
+
+// ─── Índices extremos de temperatura (ETCCDI) ─────────────
+// No son promedios sino los extremos del período: TXx y TXn salen de la
+// temperatura máxima diaria —el día más caluroso y el más fresco—, TNx y TNn de
+// la mínima —la noche más cálida y la más fría—. Los cuatro se publican
+// como cambio en grados frente a 1981-2010, así que comparten la escala de
+// temperatura con tasmax y tasmin.
+const INDICES_EXTREMOS = {
+  txx: { codigo: "TXx", sujeto: "el día más caluroso",
+         lectura: "Es el techo del calor, del que dependen los umbrales de golpe de calor y de estrés térmico en los cultivos." },
+  txn: { codigo: "TXn", sujeto: "el día más fresco",
+         lectura: "Sube también el extremo templado del período: se acorta el respiro entre episodios de calor." },
+  tnx: { codigo: "TNx", sujeto: "la noche más cálida",
+         lectura: "Las noches cálidas impiden que las personas y los cultivos se recuperen del calor del día." },
+  tnn: { codigo: "TNn", sujeto: "la noche más fría",
+         lectura: "La noche más fría deja de serlo tanto: menos heladas, y también menos frío que frene plagas." },
 };
 
 const NOMBRE_REFERENCIA = {
@@ -78,6 +97,7 @@ const state = {
   estacion:  "anual",
   imcActive: false,
   imcTipo:   "agricola",
+  indice:    null,     // clave del índice extremo en uso, o null
   refLayer:  "departamentos",
 };
 
@@ -237,6 +257,11 @@ function imcFilename(tipo) {
   return `data/indice_multipeligro_${tipo}_2036_2065.geojson`;
 }
 
+function indiceFilename(indice, estacion) {
+  const est = estacion === "anual" ? "anual" : estacion.toUpperCase();
+  return `data/indices/${indice}_${est}.json`;
+}
+
 function refFilename(layer) {
   return `data/${layer}.geojson`;
 }
@@ -246,6 +271,40 @@ async function fetchGeoJSON(path) {
   const res = await fetch(path);
   if (!res.ok) throw new Error(`No se encontró: ${path}`);
   return res.json();
+}
+
+// La geometría de los 1891 distritos pesa 2,5 MB y es idéntica en los veinte
+// cortes de índice: se descarga una vez y los valores viajan aparte, 13 KB
+// cada uno. Repetirla en cada archivo costaría 52 MB y una espera entera al
+// cambiar de índice. Se guarda la promesa, no el resultado, para que dos
+// peticiones seguidas no disparen dos descargas.
+let geometriaDistritos = null;
+
+function cargarGeometriaDistritos() {
+  if (!geometriaDistritos) {
+    geometriaDistritos = fetchGeoJSON("data/distritos.geojson")
+      .catch(err => { geometriaDistritos = null; throw err; });
+  }
+  return geometriaDistritos;
+}
+
+async function distritosConValores(indice, estacion) {
+  const archivo = indiceFilename(indice, estacion);
+  const [geo, datos] = await Promise.all([cargarGeometriaDistritos(), fetchGeoJSON(archivo)]);
+  const valores = datos && datos.valores;
+  // Los valores se emparejan por posición, no por nombre: hay 99 nombres de
+  // distrito repetidos en el país y emparejar por nombre los mezclaría.
+  if (!Array.isArray(valores) || valores.length !== geo.features.length) {
+    throw new Error(`${archivo} no cuadra con la capa de distritos`);
+  }
+  return {
+    type: "FeatureCollection",
+    features: geo.features.map((f, i) => ({
+      type: "Feature",
+      geometry: f.geometry,
+      properties: { DISTRITO: f.properties.DISTRITO, valor: valores[i] },
+    })),
+  };
 }
 
 // ─── Interpretaciones textuales ───────────────────────────
@@ -264,6 +323,11 @@ const VAR_INFO = {
     title: "Temperatura Mínima",
     desc: "Cambio proyectado en la temperatura mínima diaria (°C). Afecta principalmente las heladas, la biodiversidad altoandina y los ciclos agrícolas.",
     sectores: ["Agricultura", "Ganadería", "Biodiversidad", "Energía"],
+  },
+  indices: {
+    title: "Índices extremos de temperatura",
+    desc: "Cuatro índices ETCCDI que no describen el promedio sino el extremo del período: <strong>TXx</strong> el día más caluroso y <strong>TXn</strong> el más fresco, ambos de la temperatura máxima diaria; <strong>TNx</strong> la noche más cálida y <strong>TNn</strong> la más fría, de la mínima. Se publican como cambio en grados frente a 1981–2010.",
+    sectores: ["Salud", "Agricultura", "Ganadería", "Gestión de riesgos"],
   },
   imc: {
     title: "Índice Multipeligro Climático",
@@ -284,6 +348,18 @@ function climateInterpret(variable, valor) {
     if (v <   15) return { text: `Leve aumento de lluvias (${v.toFixed(1)}%). Puede intensificar eventos locales.`, color: "#2a7a4a" };
     if (v <   30) return { text: `Aumento <strong>moderado</strong> de lluvias (${v.toFixed(1)}%). Mayor riesgo de inundaciones locales.`, color: "#1a5e35" };
     return { text: `Aumento <strong>significativo</strong> de lluvias (${v.toFixed(1)}%). Riesgo elevado de inundaciones y deslizamientos.`, color: "#003320" };
+  }
+
+  const extremo = INDICES_EXTREMOS[variable];
+  if (extremo) {
+    const g = `${signo(v, variable)}${v.toFixed(1)} °C`;
+    const grado = v < 1.0 ? ["leve", "#f0a020"]
+                : v < 2.0 ? ["<strong>moderado</strong>", "#e07010"]
+                : v < 2.5 ? ["<strong>alto</strong>", "#c84000"]
+                : v < 3.0 ? ["<strong>muy alto</strong>", "#a02000"]
+                :           ["<strong>crítico</strong>", "#800010"];
+    return { text: `Cambio ${grado[0]}: ${extremo.sujeto} del período sube ${g}. ${extremo.lectura}`,
+             color: grado[1] };
   }
 
   if (variable === "tasmax" || variable === "tasmin") {
@@ -538,8 +614,8 @@ function lineaContexto(valor, variable, isImc, punto) {
 // marca es el color con el que el distrito está pintado.
 function escalaDe(variable) {
   if (variable === "pr")     return { bins: PREC_BINS, colores: PREC_COLORS };
-  if (variable === "tasmax" ||
-      variable === "tasmin") return { bins: TEMP_BINS, colores: TEMP_COLORS };
+  if (variable === "tasmax" || variable === "tasmin" || INDICES_EXTREMOS[variable])
+    return { bins: TEMP_BINS, colores: TEMP_COLORS };
   return null;
 }
 
@@ -736,7 +812,10 @@ function construirInfoHTML(props, variable, isImc, punto) {
   } else {
     const unit = variable === "pr" ? "%" : "°C";
     const fmt  = valor != null ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unit}` : "Sin dato";
-    rows.push({ k: "Variable", v: NOMBRE_VARIABLE[variable] || variable });
+    const extremo = INDICES_EXTREMOS[variable];
+    rows.push(extremo
+      ? { k: "Índice",   v: `${NOMBRE_VARIABLE[variable]} (${extremo.codigo})` }
+      : { k: "Variable", v: NOMBRE_VARIABLE[variable] || variable });
     rows.push({ k: "Estación", v: seasonLabel(state.estacion) });
     rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
     rows.push({ k: "Cambio",   v: fmt, highlight: true });
@@ -1159,9 +1238,12 @@ function buildClimateLegend(variable) {
     </div>`;
   }).join("");
 
+  const extremo = INDICES_EXTREMOS[variable];
+  const nota = extremo ? `${extremo.codigo} · Cambio respecto a 1981–2010`
+                       : "Cambio respecto a 1981–2010";
   el.innerHTML = `
     <div class="legend-title">${title}</div>
-    <div class="legend-ref-note">Cambio respecto a 1981–2010</div>
+    <div class="legend-ref-note">${nota}</div>
     ${items}`;
 }
 
@@ -1213,14 +1295,15 @@ async function cargarDatos() {
   ocultarInfo();
 
   const esImc = state.imcActive;
-  const archivo = esImc ? imcFilename(state.imcTipo)
-                        : climateFilename(state.variable, state.estacion);
+  const pedirDatos = esImc  ? () => fetchGeoJSON(imcFilename(state.imcTipo))
+                    : state.indice ? () => distritosConValores(state.indice, state.estacion)
+                    : () => fetchGeoJSON(climateFilename(state.variable, state.estacion));
   showLoader(esImc
     ? `Cargando ${NOMBRE_VARIABLE.imc} · Anual`
     : `Cargando ${NOMBRE_VARIABLE[state.variable]} · ${seasonLabel(state.estacion)}`);
 
   try {
-    const data = await fetchGeoJSON(archivo);
+    const data = await pedirDatos();
     if (generacion !== generacionDatos) return;
 
     const base = esImc ? ESTILO_IMC : ESTILO_CLIMA;
@@ -1332,13 +1415,45 @@ document.querySelectorAll(".btn-season").forEach(btn => {
   });
 });
 
-// ─── Variable climática (incluye IMC como opción) ─────────
+// ─── Variable climática (incluye IMC e índices extremos) ──
+// Los índices son una variable más de cara al mapa: entran por la misma
+// tarjeta y solo se distinguen en la subsección que despliegan.
+const panelIndices = document.getElementById("indicePanel");
+
+function marcarIndice(clave) {
+  panelIndices.querySelectorAll(".indice-op").forEach(b =>
+    b.classList.toggle("active", b.dataset.value === clave));
+}
+
+function activarIndice(clave) {
+  if (state.variable === clave) return;
+  marcarIndice(clave);
+  state.indice    = clave;
+  state.variable  = clave;
+  state.imcActive = false;
+  setSeasonBlocked(false);
+  cargarDatos();
+}
+
 setupRadioGroup("varGroup", value => {
-  if (state.variable === value) return;
+  if (value === "indices") {
+    panelIndices.hidden = false;
+    const fila = panelIndices.querySelector(".indice-op.active")
+              || panelIndices.querySelector(".indice-op");
+    activarIndice(fila.dataset.value);
+    return;
+  }
+  panelIndices.hidden = true;
+  if (!state.indice && state.variable === value) return;
+  state.indice    = null;
   state.imcActive = value === "imc";
   state.variable  = value;
   setSeasonBlocked(state.imcActive);
   cargarDatos();
+});
+
+panelIndices.querySelectorAll(".indice-op").forEach(btn => {
+  btn.addEventListener("click", () => activarIndice(btn.dataset.value));
 });
 
 // ─── Capa de referencia (radio exclusivo) ─────────────────
