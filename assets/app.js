@@ -398,6 +398,11 @@ function nombreDeUnidad(props) {
   return { articulo: generica ? "de la" : "de la cuenca", nombre };
 }
 
+// Una sola frase, con un solo número que comparar. La mediana del grupo no
+// se enuncia aquí: escrita junto al recuento obligaba a cruzar tres cifras,
+// y cuando iba en sentido contrario —«suben más que este» seguido de «la
+// mitad baja»— se leía como una contradicción. Sigue a la vista como la
+// marca sobre la escala, donde la distancia hasta el punto se ve sin leer.
 function contextoRegional(valor, variable, isImc, punto) {
   if (valor == null || !punto) return null;
   const grupo = datosRegionales(punto);
@@ -410,9 +415,7 @@ function contextoRegional(valor, variable, isImc, punto) {
   const total = grupo.valores.length;
   const lugar = `${donde.articulo} ${escaparHTML(donde.nombre)}`;
 
-  if (total === 1) {
-    return { texto: `Único distrito ${lugar} con dato.`, breve: "" };
-  }
+  if (total === 1) return `Único distrito ${lugar} con dato.`;
 
   // En precipitación el extremo relevante depende del signo del cambio
   const reduce = variable === "pr" && !isImc && v < 0;
@@ -423,33 +426,9 @@ function contextoRegional(valor, variable, isImc, punto) {
   const habla = isImc  ? { pl: "están más expuestos que este", sg: "está más expuesto que este" }
               : reduce ? { pl: "bajan más que este",           sg: "baja más que este" }
               :          { pl: "suben más que este",           sg: "sube más que este" };
-  const posicion = delante === 0
+  return delante === 0
     ? `Ninguno de los ${total} distritos ${lugar} ${habla.sg}.`
     : `${delante} de los ${total} distritos ${lugar} ${delante === 1 ? habla.sg : habla.pl}.`;
-
-  return {
-    texto: `${posicion} ${fraseMediana(grupo.mediana, total, variable, isImc)}`,
-    breve: posicion,
-  };
-}
-
-// La mediana, enunciada: «la mitad de los 84 distritos baja más de 3.7 %»
-// es la misma cifra que «mediana −3.7 %», pero no exige saber qué es una
-// mediana. Se repite el total en lugar de decir «ellos» porque el
-// pronombre señalaría a los distritos que la frase anterior acaba de
-// contar, que son solo una parte del grupo.
-function fraseMediana(med, total, variable, isImc) {
-  const cuantos = `La mitad de los ${total} distritos`;
-  if (isImc) return `${cuantos} supera ${med.toFixed(3)}.`;
-  const unidad = variable === "pr" ? " %" : " °C";
-  const a = Math.abs(med);
-  // Una mediana que se redondearía a cero no se puede enunciar como subida
-  // ni como bajada sin exagerar su tamaño
-  if (a < 5e-4) return `${cuantos} sube y la otra mitad baja.`;
-  const cifra = parseFloat(a.toFixed(1)) === 0 ? a.toPrecision(1) : a.toFixed(1);
-  return med > 0
-    ? `${cuantos} sube más de ${cifra}${unidad}.`
-    : `${cuantos} baja más de ${cifra}${unidad}.`;
 }
 
 // Rótulo y explicación de la marca. Sin rótulo se confunde con un adorno,
@@ -496,10 +475,8 @@ function rotuloMediana(bar) {
   return `<div class="escala-pie"><span style="left:${x}%">${bar.medianaRotulo}</span></div>`;
 }
 
-function lineaContexto(valor, variable, isImc, punto, breve) {
-  const ctx = contextoRegional(valor, variable, isImc, punto);
-  if (!ctx) return "";
-  const txt = breve ? ctx.breve : ctx.texto;
+function lineaContexto(valor, variable, isImc, punto) {
+  const txt = contextoRegional(valor, variable, isImc, punto);
   return txt ? `<div class="info-contexto">${txt}</div>` : "";
 }
 
@@ -869,7 +846,7 @@ function construirInfoCompacto(props, variable, isImc, punto) {
 
   const ubica = ref ? `${ref.etiqueta}: ${ref.valor}` : "";
 
-  const contexto = lineaContexto(valor, variable, isImc, punto, true);
+  const contexto = lineaContexto(valor, variable, isImc, punto);
 
   return `<button class="ic-manija" id="icManija" aria-label="Extender la ficha"></button>
           <div class="ic-cabecera">
