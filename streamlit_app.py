@@ -684,7 +684,7 @@ st.markdown("""
 <div class="senamhi-header">
     <div>
         <h1>PEGASO</h1>
-        <p class="subtitle">Plataforma de Escenarios de Cambio Climático para la Gestión y la Adaptación en los Servicios Sectoriales<br>SENAMHI · MINAM · Escenario SSP5-8.5 CMIP6 · Resolución 5 km · Período 2036–2065</p>
+        <p class="subtitle">Plataforma de Escenarios de Cambio Climático para la Gestión y la Adaptación en los Servicios Sectoriales<br>Escenario SSP5-8.5 CMIP6 · Resolución 5 km · Período 2036–2065</p>
     </div>
     <span class="badge">BETA</span>
 </div>
