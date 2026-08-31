@@ -358,17 +358,19 @@ function datosRegionales(punto) {
   return { ...cacheRegional.datos, props: cacheRegional.props };
 }
 
-// Cuántos distritos del grupo quedan por delante del valor, contando desde
-// el extremo que interesa: el mayor aumento, la mayor reducción o la mayor
-// exposición. Los empates no cuentan como delantera, de modo que dos
-// distritos con el mismo valor reciben la misma lectura.
-function cuantosSuperan(valor, ordenados, descendente) {
+// Cuántos distritos del grupo quedan por delante y por detrás del valor,
+// contando desde el extremo que interesa: el mayor aumento, la mayor
+// reducción o la mayor exposición. Los empates no van a ningún lado, de
+// modo que dos distritos con el mismo valor reciben la misma lectura.
+function posicionEnGrupo(valor, ordenados, descendente) {
   const v = parseFloat(valor);
-  let n = 0;
+  let delante = 0, detras = 0;
   for (const x of ordenados) {
-    if (descendente ? x > v : x < v) n++;
+    if (x === v) continue;
+    if (descendente ? x > v : x < v) delante++;
+    else detras++;
   }
-  return n;
+  return { delante, detras };
 }
 
 const MINUSCULAS = new Set(["de", "del", "la", "las", "los", "y"]);
@@ -384,25 +386,52 @@ function enTitulo(nombre) {
 
 function nombreDeUnidad(props) {
   if (state.refLayer === "departamentos") {
-    return { articulo: "del departamento de", nombre: enTitulo(conTildes(props.DEPARTAMEN)) };
+    return { articulo: "del departamento de", en: "en el departamento de",
+             nombre: enTitulo(conTildes(props.DEPARTAMEN)) };
   }
   if (state.refLayer === "provincias") {
-    return { articulo: "de la provincia de", nombre: enTitulo(conTildes(props.PROVINCIA)) };
+    return { articulo: "de la provincia de", en: "en la provincia de",
+             nombre: enTitulo(conTildes(props.PROVINCIA)) };
   }
   const ref = describirReferencia(props);
-  if (!ref) return { articulo: "de la cuenca", nombre: null };
+  if (!ref) return { articulo: "de la cuenca", en: "en la cuenca", nombre: null };
   const nombre = enTitulo(ref.valor);
   // Buena parte de las cuencas se nombran «Unidad Hidrográfica NNNNN»:
   // anteponerles «de la cuenca» sonaría redundante.
   const generica = /^unidad hidrogr/i.test(nombre);
-  return { articulo: generica ? "de la" : "de la cuenca", nombre };
+  return { articulo: generica ? "de la" : "de la cuenca",
+           en:       generica ? "en la" : "en la cuenca", nombre };
 }
 
-// Una sola frase, con un solo número que comparar. La mediana del grupo no
-// se enuncia aquí: escrita junto al recuento obligaba a cruzar tres cifras,
-// y cuando iba en sentido contrario —«suben más que este» seguido de «la
-// mitad baja»— se leía como una contradicción. Sigue a la vista como la
-// marca sobre la escala, donde la distancia hasta el punto se ve sin leer.
+// La lectura primero y el dato después. Un recuento suelto —«19 de los 38
+// distritos suben más que este»— obliga a dividirlo mentalmente por el
+// total para saber si el distrito está alto, bajo o en medio, que es lo
+// único que se quiere saber. La frase lo dice y deja el recuento detrás,
+// para quien quiera comprobarlo.
+const VEREDICTO = {
+  sube: { mas:   "De los que más suben",   sobre: "Sube más de lo habitual",
+          medio: "Un aumento intermedio",  bajo:  "Sube menos de lo habitual",
+          menos: "De los que menos suben" },
+  baja: { mas:   "De los que más bajan",      sobre: "Baja más de lo habitual",
+          medio: "Una reducción intermedia",  bajo:  "Baja menos de lo habitual",
+          menos: "De los que menos bajan" },
+  imc:  { mas:   "De los más expuestos",   sobre: "Más expuesto de lo habitual",
+          medio: "Exposición intermedia",  bajo:  "Menos expuesto de lo habitual",
+          menos: "De los menos expuestos" },
+};
+
+// Los dos extremos se dicen con «de» —«de los que más suben del
+// departamento de…»— y los tres tramos centrales con «en».
+const VEREDICTO_CON_DE = new Set(["mas", "menos"]);
+
+function tramoDe(fraccion) {
+  if (fraccion < 0.10) return "mas";
+  if (fraccion < 0.35) return "sobre";
+  if (fraccion <= 0.65) return "medio";
+  if (fraccion < 0.90) return "bajo";
+  return "menos";
+}
+
 function contextoRegional(valor, variable, isImc, punto) {
   if (valor == null || !punto) return null;
   const grupo = datosRegionales(punto);
@@ -413,22 +442,34 @@ function contextoRegional(valor, variable, isImc, punto) {
 
   const v = parseFloat(valor);
   const total = grupo.valores.length;
-  const lugar = `${donde.articulo} ${escaparHTML(donde.nombre)}`;
+  const nombre = escaparHTML(donde.nombre);
 
-  if (total === 1) return `Único distrito ${lugar} con dato.`;
+  if (total === 1) return `Único distrito ${donde.articulo} ${nombre} con dato.`;
 
   // En precipitación el extremo relevante depende del signo del cambio
   const reduce = variable === "pr" && !isImc && v < 0;
-  const delante = cuantosSuperan(v, grupo.valores, !reduce);
-  // Se dice lo que hacen los distritos que quedan por delante en vez del
-  // puesto que ocupa este: «51 de los 84 bajan más que este» se entiende
-  // de una lectura, y «52.º con mayor reducción» hay que descifrarlo.
+  const { delante, detras } = posicionEnGrupo(v, grupo.valores, !reduce);
+  // La fracción se calcula sobre los distritos con los que cabe compararse,
+  // sin los empatados: si todo el grupo tuviera el mismo valor, no habría
+  // ni delantera ni retraso que leer y la lectura es la del medio.
+  const comparables = delante + detras;
+  const tramo = tramoDe(comparables ? delante / comparables : 0.5);
+
   const habla = isImc  ? { pl: "están más expuestos que este", sg: "está más expuesto que este" }
               : reduce ? { pl: "bajan más que este",           sg: "baja más que este" }
               :          { pl: "suben más que este",           sg: "sube más que este" };
-  return delante === 0
-    ? `Ninguno de los ${total} distritos ${lugar} ${habla.sg}.`
-    : `${delante} de los ${total} distritos ${lugar} ${delante === 1 ? habla.sg : habla.pl}.`;
+  const veredicto = VEREDICTO[isImc ? "imc" : reduce ? "baja" : "sube"][tramo];
+  const lugar = `${VEREDICTO_CON_DE.has(tramo) ? donde.articulo : donde.en} ${nombre}`;
+
+  // «Solo» donde el recuento es pequeño: sin él, un número bajo suelto no
+  // se lee como pocos hasta compararlo con el total.
+  const cuantos = delante === 0 ? "ninguno"
+                : delante === 1 ? "solo uno"
+                : tramo === "mas" ? `solo ${delante}`
+                : `${delante}`;
+  const verbo = delante > 1 ? habla.pl : habla.sg;
+  return `<strong>${veredicto}</strong> ${lugar}: ` +
+         `${cuantos} de sus ${total} distritos ${verbo}.`;
 }
 
 // La marca se nombra por lo que es. El territorio no hace falta repetirlo

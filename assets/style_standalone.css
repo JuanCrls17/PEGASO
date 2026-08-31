@@ -1484,6 +1484,13 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   color: #55627a;
 }
 
+/* La lectura va destacada porque es lo que se busca al abrir la ficha;
+   el recuento que la sostiene queda en el tono del resto */
+.info-contexto strong {
+  color: var(--azul);
+  font-weight: 700;
+}
+
 .info-interpret {
   margin-top: 7px;
   font-size: 0.72rem;
