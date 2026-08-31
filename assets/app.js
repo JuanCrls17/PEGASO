@@ -31,14 +31,18 @@ const NOMBRE_VARIABLE = {
 // como cambio en grados frente a 1981-2010, así que comparten la escala de
 // temperatura con tasmax y tasmin.
 const INDICES_EXTREMOS = {
-  txx: { codigo: "TXx", sujeto: "el día más caluroso",
+  txx: { codigo: "TXx", quien: "El día más caluroso del período",
+         sube: "más caluroso", baja: "menos caluroso",
          lectura: "Es el techo del calor, del que dependen los umbrales de golpe de calor y de estrés térmico en los cultivos." },
-  txn: { codigo: "TXn", sujeto: "el día más fresco",
-         lectura: "Sube también el extremo templado del período: se acorta el respiro entre episodios de calor." },
-  tnx: { codigo: "TNx", sujeto: "la noche más cálida",
-         lectura: "Las noches cálidas impiden que las personas y los cultivos se recuperen del calor del día." },
-  tnn: { codigo: "TNn", sujeto: "la noche más fría",
-         lectura: "La noche más fría deja de serlo tanto: menos heladas, y también menos frío que frene plagas." },
+  txn: { codigo: "TXn", quien: "El día más fresco del período",
+         sube: "más cálido", baja: "más fresco",
+         lectura: "Sube también el extremo templado, con lo que se acorta el respiro entre episodios de calor." },
+  tnx: { codigo: "TNx", quien: "La noche más cálida del período",
+         sube: "más cálida", baja: "menos cálida",
+         lectura: "Sin noches frescas, ni las personas ni los cultivos descargan el calor acumulado durante el día." },
+  tnn: { codigo: "TNn", quien: "La noche más fría del período",
+         sube: "menos fría", baja: "más fría",
+         lectura: "Se esperan menos heladas, y también menos frío invernal del que contiene plagas y marca los ciclos de cultivo." },
 };
 
 const NOMBRE_REFERENCIA = {
@@ -63,20 +67,15 @@ const IMC_COLORS_TEXTO = {
 
 const IMC_ORDEN = ["Bajo", "Medio", "Alto", "Muy Alto"];
 
-function imcBarConfig(valor, punto) {
+function imcBarConfig(valor) {
   if (valor == null) return null;
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
-  const grupo = punto ? datosRegionales(punto) : null;
-  const med = etiquetasMediana(grupo, null, true);
   const paso = 100 / IMC_ORDEN.length;
   const tramos = IMC_ORDEN.map((cat, i) =>
     `${IMC_COLORS[cat]} ${(i * paso).toFixed(3)}%, ${IMC_COLORS[cat]} ${((i + 1) * paso).toFixed(3)}%`);
   return {
     pos: Math.min(100, Math.max(0, v * 100)),
-    medianaPos: med.rotulo ? Math.min(100, Math.max(0, grupo.mediana * 100)) : null,
-    medianaRotulo: med.rotulo,
-    medianaTitulo: med.titulo,
     color: getImcColor(v),
     banda: `linear-gradient(90deg, ${tramos.join(", ")})`,
     cero: null,
@@ -342,33 +341,33 @@ function climateInterpret(variable, valor) {
   if (isNaN(v)) return null;
 
   if (variable === "pr") {
-    if (v <= -30) return { text: `Reducción <strong>severa</strong> de lluvias (${v.toFixed(1)}%). Alto riesgo de sequías prolongadas.`, color: "#a04000" };
-    if (v <= -15) return { text: `Reducción <strong>moderada</strong> de lluvias (${v.toFixed(1)}%). Impacto relevante en disponibilidad hídrica.`, color: "#c07030" };
-    if (v <    0) return { text: `Leve reducción de lluvias (${v.toFixed(1)}%). Monitoreo recomendado.`, color: "#888" };
-    if (v <   15) return { text: `Leve aumento de lluvias (${v.toFixed(1)}%). Puede intensificar eventos locales.`, color: "#2a7a4a" };
-    if (v <   30) return { text: `Aumento <strong>moderado</strong> de lluvias (${v.toFixed(1)}%). Mayor riesgo de inundaciones locales.`, color: "#1a5e35" };
-    return { text: `Aumento <strong>significativo</strong> de lluvias (${v.toFixed(1)}%). Riesgo elevado de inundaciones y deslizamientos.`, color: "#003320" };
+    if (v <= -30) return { text: `Reducción <strong>severa</strong> de lluvias (${v.toFixed(1)}%). Alto riesgo de sequías prolongadas.` };
+    if (v <= -15) return { text: `Reducción <strong>moderada</strong> de lluvias (${v.toFixed(1)}%). Impacto relevante en disponibilidad hídrica.` };
+    if (v <    0) return { text: `Leve reducción de lluvias (${v.toFixed(1)}%). Monitoreo recomendado.` };
+    if (v <   15) return { text: `Leve aumento de lluvias (${v.toFixed(1)}%). Puede intensificar eventos locales.` };
+    if (v <   30) return { text: `Aumento <strong>moderado</strong> de lluvias (${v.toFixed(1)}%). Mayor riesgo de inundaciones locales.` };
+    return { text: `Aumento <strong>significativo</strong> de lluvias (${v.toFixed(1)}%). Riesgo elevado de inundaciones y deslizamientos.` };
   }
 
   const extremo = INDICES_EXTREMOS[variable];
   if (extremo) {
-    const g = `${signo(v, variable)}${v.toFixed(1)} °C`;
-    const grado = v < 1.0 ? ["leve", "#f0a020"]
-                : v < 2.0 ? ["<strong>moderado</strong>", "#e07010"]
-                : v < 2.5 ? ["<strong>alto</strong>", "#c84000"]
-                : v < 3.0 ? ["<strong>muy alto</strong>", "#a02000"]
-                :           ["<strong>crítico</strong>", "#800010"];
-    return { text: `Cambio ${grado[0]}: ${extremo.sujeto} del período sube ${g}. ${extremo.lectura}`,
-             color: grado[1] };
+    // Sin escala de gravedad. La de temperatura media está calibrada sobre
+    // otro reparto y aquí no distingue nada: TNx entero cae entre 1,7 y
+    // 2,8 °C, con lo que todos los distritos del país saldrían «altos». La
+    // comparación regional de la línea de arriba ya sitúa el valor; esta
+    // frase dice qué es lo que sube y qué se sigue de ello.
+    const cuanto = `<strong>${Math.abs(v).toFixed(1)} °C</strong>`;
+    const sentido = v >= 0 ? extremo.sube : extremo.baja;
+    return { text: `${extremo.quien} será ${cuanto} ${sentido} que en 1981–2010. ${extremo.lectura}` };
   }
 
   if (variable === "tasmax" || variable === "tasmin") {
     const lbl = variable === "tasmax" ? "días más cálidos" : "noches más frías";
-    if (v < 0.5)  return { text: `Calentamiento leve (+${v.toFixed(1)}°C en ${lbl}). Cambio dentro de variabilidad natural.`, color: "#f0a020" };
-    if (v < 1.0)  return { text: `Calentamiento <strong>moderado</strong> (+${v.toFixed(1)}°C en ${lbl}). Impactos perceptibles en agricultura y salud.`, color: "#e07010" };
-    if (v < 1.5)  return { text: `Calentamiento <strong>alto</strong> (+${v.toFixed(1)}°C en ${lbl}). Estrés hídrico y térmico significativo.`, color: "#c84000" };
-    if (v < 2.0)  return { text: `Calentamiento <strong>muy alto</strong> (+${v.toFixed(1)}°C en ${lbl}). Riesgo serio para ecosistemas y población.`, color: "#a02000" };
-    return { text: `Calentamiento <strong>crítico</strong> (+${v.toFixed(1)}°C en ${lbl}). Zona entre las más afectadas del país.`, color: "#800010" };
+    if (v < 0.5)  return { text: `Calentamiento leve (+${v.toFixed(1)}°C en ${lbl}). Cambio dentro de variabilidad natural.` };
+    if (v < 1.0)  return { text: `Calentamiento <strong>moderado</strong> (+${v.toFixed(1)}°C en ${lbl}). Impactos perceptibles en agricultura y salud.` };
+    if (v < 1.5)  return { text: `Calentamiento <strong>alto</strong> (+${v.toFixed(1)}°C en ${lbl}). Estrés hídrico y térmico significativo.` };
+    if (v < 2.0)  return { text: `Calentamiento <strong>muy alto</strong> (+${v.toFixed(1)}°C en ${lbl}). Riesgo serio para ecosistemas y población.` };
+    return { text: `Calentamiento <strong>crítico</strong> (+${v.toFixed(1)}°C en ${lbl}). Zona entre las más afectadas del país.` };
   }
 
   return null;
@@ -386,12 +385,6 @@ function signo(valor, variable) {
 // provincia o cuenca—, que suele ser el marco en el que se decide. Se
 // resuelve solo para la unidad consultada, no para las 25 o las 231, y se
 // guarda en caché mientras no cambien ni los datos ni la referencia.
-//
-// El punto de referencia del grupo es la mediana y no la media: en
-// precipitación la distribución está muy sesgada por la costa norte
-// —media +3,7 % frente a mediana −0,5 %, de signo opuesto—, y la media
-// daría una referencia engañosa. Va rotulada en la escala y no en el
-// texto, con su valor y su definición en el título.
 let cacheRegional = { clave: null, datos: null };
 
 function distritosDeLaUnidad(unidad) {
@@ -416,11 +409,7 @@ function distritosDeLaUnidad(unidad) {
   if (!valores.length) return null;
 
   valores.sort((a, b) => a - b);
-  const m = valores.length;
-  return {
-    valores,
-    mediana: m % 2 ? valores[(m - 1) / 2] : (valores[m / 2 - 1] + valores[m / 2]) / 2,
-  };
+  return { valores };
 }
 
 function datosRegionales(punto) {
@@ -548,60 +537,6 @@ function contextoRegional(valor, variable, isImc, punto) {
          `${cuantos} de sus ${total} distritos ${verbo}.`;
 }
 
-// La marca se nombra por lo que es. El territorio no hace falta repetirlo
-// —la frase de abajo ya lo dice— y el adjetivo cabe donde no cabía el
-// nombre de una unidad hidrográfica.
-const ROTULO_MEDIANA = {
-  departamentos: "mediana departamental",
-  provincias:    "mediana provincial",
-  cuencas:       "mediana de la cuenca",
-};
-
-// Sin rótulo la marca se confunde con un adorno; el título da su valor y
-// dice en una línea qué separa, para quien no maneje el término.
-function etiquetasMediana(grupo, variable, isImc) {
-  if (!grupo) return { rotulo: null, titulo: "" };
-  const donde = nombreDeUnidad(grupo.props);
-  if (!donde.nombre) return { rotulo: null, titulo: "" };
-  const unidad = isImc ? "" : (variable === "pr" ? " %" : " °C");
-  const cifra = `${isImc ? "" : signo(grupo.mediana, variable)}` +
-                `${grupo.mediana.toFixed(isImc ? 3 : 1)}${unidad}`;
-  return {
-    rotulo: ROTULO_MEDIANA[state.refLayer] || "mediana del grupo",
-    titulo: `Mediana de los ${grupo.valores.length} distritos ${donde.articulo} ` +
-            `${escaparHTML(donde.nombre)}: ${cifra}. La mitad queda a cada lado.`,
-  };
-}
-
-function marcaMediana(bar) {
-  if (bar.medianaPos == null) return "";
-  return `<span class="escala-mediana" title="${bar.medianaTitulo}" style="left:${bar.medianaPos}%"></span>`;
-}
-
-// El rótulo va centrado bajo su marca, pero junto a los extremos de la
-// banda no cabría entero: se desplaza lo justo para no salirse de la ficha
-// y la pequeña guía que lo une a la línea se mueve al revés, de modo que
-// sigue apuntando a la marca.
-function ajustarRotuloMediana(caja) {
-  const pie = caja.querySelector(".escala-pie");
-  const texto = pie && pie.firstElementChild;
-  if (!texto) return;
-  const marco = pie.getBoundingClientRect();
-  const r = texto.getBoundingClientRect();
-  const ajuste = r.left < marco.left ? marco.left - r.left
-               : r.right > marco.right ? marco.right - r.right
-               : 0;
-  if (!ajuste) return;
-  texto.style.transform = `translateX(calc(-50% + ${ajuste.toFixed(1)}px))`;
-  texto.style.setProperty("--guia", `${(-ajuste).toFixed(1)}px`);
-}
-
-function rotuloMediana(bar) {
-  if (bar.medianaPos == null || !bar.medianaRotulo) return "";
-  const x = Math.min(94, Math.max(6, bar.medianaPos));
-  return `<div class="escala-pie"><span style="left:${x}%">${bar.medianaRotulo}</span></div>`;
-}
-
 function lineaContexto(valor, variable, isImc, punto) {
   const txt = contextoRegional(valor, variable, isImc, punto);
   return txt ? `<div class="info-contexto">${txt}</div>` : "";
@@ -641,15 +576,12 @@ function bandaDeEscala(colores) {
   return `linear-gradient(90deg, ${tramos.join(", ")})`;
 }
 
-function climateBarConfig(variable, valor, punto) {
+function climateBarConfig(variable, valor) {
   if (valor == null) return null;
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
   const escala = escalaDe(variable);
   if (!escala) return null;
-  const grupo = punto ? datosRegionales(punto) : null;
-  const med = etiquetasMediana(grupo, variable, false);
-
   const { bins, colores } = escala;
   const esPrec = variable === "pr";
   const unidad = esPrec ? "%" : "°C";
@@ -657,9 +589,6 @@ function climateBarConfig(variable, valor, punto) {
 
   return {
     pos: posicionEnEscala(v, bins, colores),
-    medianaPos: med.rotulo ? posicionEnEscala(grupo.mediana, bins, colores) : null,
-    medianaRotulo: med.rotulo,
-    medianaTitulo: med.titulo,
     color: getClimateColor(v, variable),
     // Los tonos claros del centro de la escala no se leen como texto:
     // la cifra usa un color propio, con el sentido del cambio.
@@ -793,7 +722,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
     const tinte = IMC_COLORS_TEXTO[lbl] || "#888";
     rows.push({ k: "Categoría", v: `<span style="font-weight:700;color:${tinte}">${lbl}</span>` });
     rows.push({ k: "Valor IMC", v: fmt, highlight: true });
-    const bar = imcBarConfig(valor, punto);
+    const bar = imcBarConfig(valor);
     if (bar) {
       barHtml = `
       <div class="info-value-bar-wrap">
@@ -801,10 +730,8 @@ function construirInfoHTML(props, variable, isImc, punto) {
           <span>${bar.minLabel}</span><span>${bar.midLabel}</span><span>${bar.maxLabel}</span>
         </div>
         <div class="escala-banda" style="background:${bar.banda}">
-          ${marcaMediana(bar)}
           <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
         </div>
-        ${rotuloMediana(bar)}
         ${lineaContexto(valor, null, true, punto)}
       </div>`;
     }
@@ -820,7 +747,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
     rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
     rows.push({ k: "Cambio",   v: fmt, highlight: true });
 
-    const bar = climateBarConfig(variable, valor, punto);
+    const bar = climateBarConfig(variable, valor);
     if (bar) {
       barHtml = `
         <div class="info-value-bar-wrap">
@@ -831,10 +758,8 @@ function construirInfoHTML(props, variable, isImc, punto) {
           </div>
           <div class="escala-banda" style="background:${bar.banda}">
             ${bar.cero != null ? `<span class="escala-cero" style="left:${bar.cero}%"></span>` : ""}
-            ${marcaMediana(bar)}
             <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
           </div>
-          ${rotuloMediana(bar)}
           ${lineaContexto(valor, variable, false, punto)}
         </div>`;
     }
@@ -952,24 +877,20 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     color = IMC_COLORS_TEXTO[lbl] || "#888";
     cifra = valor != null ? parseFloat(valor).toFixed(3) : "—";
     etiqueta = `Índice Multipeligro · ${lbl}`;
-    const bar = imcBarConfig(valor, punto);
+    const bar = imcBarConfig(valor);
     if (bar) barra = `<div class="escala-banda compacta" style="background:${bar.banda}">
-      ${marcaMediana(bar)}
-      <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>
-      ${rotuloMediana(bar)}`;
+      <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>`;
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
       ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unidad}`
       : "Sin dato";
     etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
-    const cfg = climateBarConfig(variable, valor, punto);
+    const cfg = climateBarConfig(variable, valor);
     color = cfg ? cfg.colorTexto : "#888";
     if (cfg) barra = `<div class="escala-banda compacta" style="background:${cfg.banda}">
       ${cfg.cero != null ? `<span class="escala-cero" style="left:${cfg.cero}%"></span>` : ""}
-      ${marcaMediana(cfg)}
-      <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>
-      ${rotuloMediana(cfg)}`;
+      <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>`;
     const interp = climateInterpret(variable, valor);
     if (interp) texto = interp.text;
   }
@@ -1163,7 +1084,6 @@ function mostrarInfo(props) {
     setTimeout(() => {
       const globo = document.querySelector(".info-popup");
       if (!globo) return;
-      ajustarRotuloMediana(globo);
       evitarChoqueConLeyenda(globo);
     }, 60);
     return;
@@ -1186,7 +1106,6 @@ function mostrarInfo(props) {
     panel.style.top = (r.bottom - c.top + 10) + "px";
   }
   panel.style.display = "block";
-  ajustarRotuloMediana(panel);
   evitarChoqueConLeyenda(panel);
 
   const manija = document.getElementById("icManija");
@@ -1710,9 +1629,18 @@ sidebarOverlay.addEventListener("click", cerrarSidebar);
 ["varGroup", "refLayerGroup", "seasonGroup"].forEach(id => {
   const grupo = document.getElementById(id);
   if (!grupo) return;
-  grupo.addEventListener("click", () => {
+  grupo.addEventListener("click", e => {
+    // Elegir «Índices extremos» no cierra la elección sino que la abre: los
+    // cuatro cortes se despliegan debajo, y plegar el panel aquí dejaría al
+    // usuario sin poder llegar a ellos.
+    if (e.target.closest('.radio-card[data-value="indices"]')) return;
     if (esMovil()) setTimeout(cerrarSidebar, 220);
   });
+});
+
+// La subsección sí cierra: elegir un índice concreto ya es la última decisión
+panelIndices.addEventListener("click", e => {
+  if (e.target.closest(".indice-op") && esMovil()) setTimeout(cerrarSidebar, 220);
 });
 
 // ─── Buscador plegable en móvil ───────────────────────────

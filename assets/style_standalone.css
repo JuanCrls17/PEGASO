@@ -1343,38 +1343,6 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   margin-top: 3px;
 }
 
-/* Rótulo de la marca de la mediana, bajo la banda */
-.escala-pie {
-  position: relative;
-  height: 13px;
-  margin-top: 2px;
-  font-size: 0.6rem;
-  color: #74839b;
-  letter-spacing: 0.1px;
-}
-
-.map-info-panel.compacto .escala-pie {
-  font-size: 0.56rem;
-  height: 12px;
-}
-
-.escala-pie span {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  white-space: nowrap;
-}
-
-.escala-pie span::before {
-  content: "";
-  position: absolute;
-  top: -3px;
-  left: calc(50% + var(--guia, 0px));
-  width: 1px;
-  height: 3px;
-  background: #9aa8bd;
-}
-
 .map-info-panel.compacto .info-contexto {
   margin-top: 5px;
   font-size: 0.66rem;
@@ -1530,19 +1498,6 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   width: 1px;
   margin-left: -0.5px;
   background: rgba(28,44,74,0.55);
-}
-
-/* Mediana del grupo de referencia: deja la mitad de sus distritos a cada
-   lado, y la distancia hasta el punto es cuánto se aparta este de ella */
-.escala-mediana {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 2px;
-  margin-left: -1px;
-  border-radius: 1px;
-  background: rgba(255,255,255,0.9);
-  box-shadow: 0 0 0 1px rgba(24,42,78,0.55);
 }
 
 .escala-marca {
