@@ -1255,6 +1255,38 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   margin-top: 3px;
 }
 
+/* Rótulo de la marca de la mediana, bajo la banda */
+.escala-pie {
+  position: relative;
+  height: 13px;
+  margin-top: 2px;
+  font-size: 0.6rem;
+  color: #74839b;
+  letter-spacing: 0.1px;
+}
+
+.map-info-panel.compacto .escala-pie {
+  font-size: 0.56rem;
+  height: 12px;
+}
+
+.escala-pie span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.escala-pie span::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 1px;
+  height: 3px;
+  background: #9aa8bd;
+}
+
 .map-info-panel.compacto .info-contexto {
   margin-top: 5px;
   font-size: 0.66rem;
@@ -1861,7 +1893,6 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
 .sidebar-mobile-head {
   display: none;
   align-items: center;
-  justify-content: space-between;
   padding: 2px 4px 12px 4px;
   margin-bottom: 6px;
   border-bottom: 1px solid rgba(255,255,255,0.12);
@@ -1876,19 +1907,6 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   color: rgba(255,255,255,0.75);
 }
 
-.sidebar-mobile-head button {
-  width: 34px;
-  height: 34px;
-  background: rgba(255,255,255,0.08);
-  border: none;
-  border-radius: 8px;
-  color: rgba(255,255,255,0.8);
-  font-size: 0.95rem;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.sidebar-mobile-head button:active { background: rgba(255,255,255,0.2); }
 
 /* ── Botón flotante de búsqueda (solo móvil) ── */
 .search-fab {

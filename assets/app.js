@@ -44,16 +44,18 @@ const IMC_COLORS_TEXTO = {
 
 const IMC_ORDEN = ["Bajo", "Medio", "Alto", "Muy Alto"];
 
-function imcBarConfig(valor) {
+function imcBarConfig(valor, punto) {
   if (valor == null) return null;
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
+  const grupo = punto ? datosRegionales(punto) : null;
   const paso = 100 / IMC_ORDEN.length;
   const tramos = IMC_ORDEN.map((cat, i) =>
     `${IMC_COLORS[cat]} ${(i * paso).toFixed(3)}%, ${IMC_COLORS[cat]} ${((i + 1) * paso).toFixed(3)}%`);
   return {
     pos: Math.min(100, Math.max(0, v * 100)),
-    medianaPos: resumenCapa ? Math.min(100, Math.max(0, resumenCapa.mediana * 100)) : null,
+    medianaPos: grupo ? Math.min(100, Math.max(0, grupo.mediana * 100)) : null,
+    medianaRotulo: grupo ? `mediana ${nombreDeUnidad(grupo.props).nombre}` : null,
     color: getImcColor(v),
     banda: `linear-gradient(90deg, ${tramos.join(", ")})`,
     cero: null,
@@ -342,46 +344,142 @@ function percentilDe(valor, ordenados) {
   return ((menores + iguales / 2) / fin) * 100;
 }
 
-function contextoNacional(valor, variable, isImc) {
-  if (valor == null || !resumenCapa) return null;
-  const p = percentilDe(valor, resumenCapa.valores);
-  if (p == null) return null;
+// Comparación dentro de la unidad de referencia activa —departamento,
+// provincia o cuenca—, que suele ser el marco en el que se decide. Se
+// resuelve solo para la unidad consultada, no para las 25 o las 231, y se
+// guarda en caché mientras no cambien ni los datos ni la referencia.
+let cacheRegional = { clave: null, datos: null };
 
-  const unidad = isImc ? "" : (variable === "pr" ? " %" : " °C");
-  const dec = isImc ? 3 : 1;
-  const med = resumenCapa.mediana;
-  const medFmt = `${isImc ? "" : signo(med, variable)}${med.toFixed(dec)}${unidad}`;
+function distritosDeLaUnidad(unidad) {
+  const capa = capaActiva();
+  if (!capa || !unidad) return null;
 
-  const cuantos = Math.round(p);
-  // Cada magnitud lleva su propia concordancia: «exposición» es femenina
-  const habla = isImc
-    ? { sujeto: "Su exposición", supera: "supera a la de",
-        altos: "está entre las más altas del país", bajos: "está entre las más bajas del país" }
-    : { sujeto: variable === "pr" ? "Su cambio" : "Su aumento", supera: "supera al de",
-        altos: "está entre los más altos del país", bajos: "está entre los más bajos del país" };
+  const limites = unidad.getBounds();
+  const geom = unidad.feature.geometry;
+  const valores = [];
+  capa.eachLayer(l => {
+    if (!l.feature || !l.getBounds) return;
+    const v = parseFloat(l.feature.properties.valor);
+    if (isNaN(v)) return;
+    if (!limites.intersects(l.getBounds())) return;
+    // El mismo punto con el que se resuelve el distrito consultado: así
+    // ningún distrito puede quedar fuera del grupo al que pertenece. El
+    // centro del rectángulo envolvente no sirve —en los territorios de
+    // forma irregular cae fuera, o dentro del departamento vecino—.
+    const c = puntoRepresentativo(l);
+    if (puntoEnGeometria(c.lat, c.lng, geom)) valores.push(v);
+  });
+  if (!valores.length) return null;
 
-  let frase;
-  if (cuantos >= 99)      frase = `${habla.sujeto} ${habla.altos}`;
-  else if (cuantos <= 1)  frase = `${habla.sujeto} ${habla.bajos}`;
-  else if (cuantos >= 45 && cuantos <= 55)
-                          frase = `${habla.sujeto} se sitúa en torno a la mediana del país`;
-  else frase = `${habla.sujeto} ${habla.supera} ${cuantos} de cada 100 distritos`;
-
+  valores.sort((a, b) => a - b);
+  const m = valores.length;
   return {
-    texto: `${frase}. Mediana nacional: ${medFmt}.`,
-    breve: `${frase}.`,
+    valores,
+    mediana: m % 2 ? valores[(m - 1) / 2] : (valores[m / 2 - 1] + valores[m / 2]) / 2,
+  };
+}
+
+function datosRegionales(punto) {
+  const unidad = localizarUnidad(refGeoLayer, punto);
+  if (!unidad) return null;
+  const clave = `${generacionDatos}|${state.refLayer}|${L.Util.stamp(unidad)}`;
+  if (cacheRegional.clave !== clave) {
+    cacheRegional = { clave, datos: distritosDeLaUnidad(unidad), props: unidad.feature.properties };
+  }
+  if (!cacheRegional.datos) return null;
+  return { ...cacheRegional.datos, props: cacheRegional.props };
+}
+
+// Puesto del valor dentro del grupo, contando desde el extremo que
+// interesa: el mayor aumento, la mayor reducción o la mayor exposición.
+function puestoEn(valor, ordenados, descendente) {
+  const v = parseFloat(valor);
+  let mejores = 0;
+  for (const x of ordenados) {
+    if (descendente ? x > v : x < v) mejores++;
+  }
+  return mejores + 1;
+}
+
+const ORDINAL = ["", "1.º", "2.º", "3.º", "4.º", "5.º", "6.º", "7.º", "8.º", "9.º", "10.º"];
+
+const MINUSCULAS = new Set(["de", "del", "la", "las", "los", "y"]);
+
+function enTitulo(nombre) {
+  if (!nombre) return nombre;
+  return String(nombre).toLocaleLowerCase("es")
+    .split(" ")
+    .map((p, i) => (i && MINUSCULAS.has(p)) ? p
+                 : p.charAt(0).toLocaleUpperCase("es") + p.slice(1))
+    .join(" ");
+}
+
+function nombreDeUnidad(props) {
+  if (state.refLayer === "departamentos") {
+    return { articulo: "del departamento de", nombre: enTitulo(conTildes(props.DEPARTAMEN)) };
+  }
+  if (state.refLayer === "provincias") {
+    return { articulo: "de la provincia de", nombre: enTitulo(conTildes(props.PROVINCIA)) };
+  }
+  const ref = describirReferencia(props);
+  if (!ref) return { articulo: "de la cuenca", nombre: null };
+  const nombre = enTitulo(ref.valor);
+  // Buena parte de las cuencas se nombran «Unidad Hidrográfica NNNNN»:
+  // anteponerles «de la cuenca» sonaría redundante.
+  const generica = /^unidad hidrogr/i.test(nombre);
+  return { articulo: generica ? "de la" : "de la cuenca", nombre };
+}
+
+function contextoRegional(valor, variable, isImc, punto) {
+  if (valor == null || !punto) return null;
+  const grupo = datosRegionales(punto);
+  if (!grupo) return null;
+
+  const donde = nombreDeUnidad(grupo.props);
+  if (!donde.nombre) return null;
+
+  const v = parseFloat(valor);
+  const unidadTxt = isImc ? "" : (variable === "pr" ? " %" : " °C");
+  const dec = isImc ? 3 : 1;
+  const medFmt = `${isImc ? "" : signo(grupo.mediana, variable)}${grupo.mediana.toFixed(dec)}${unidadTxt}`;
+  const total = grupo.valores.length;
+
+  if (total === 1) {
+    return { texto: `Único distrito ${donde.articulo} ${donde.nombre} con dato.`, breve: "" };
+  }
+
+  // En precipitación el extremo relevante depende del signo del cambio
+  const reduce = variable === "pr" && !isImc && v < 0;
+  const puesto = puestoEn(v, grupo.valores, !reduce);
+  const orden = ORDINAL[puesto] || `${puesto}.º`;
+  const criterio = isImc ? "mayor exposición"
+                 : reduce ? "mayor reducción"
+                 : "mayor aumento";
+
+  const sitio = `${orden} de ${total} distritos ${donde.articulo} ${donde.nombre}`;
+  return {
+    texto: `${sitio} con ${criterio}. Mediana ${donde.articulo} ${donde.nombre}: ${medFmt}.`,
+    breve: `${sitio} con ${criterio}.`,
   };
 }
 
 function marcaMediana(pos) {
   if (pos == null) return "";
-  return `<span class="escala-mediana" style="left:${pos}%" title="Mediana nacional"></span>`;
+  return `<span class="escala-mediana" style="left:${pos}%"></span>`;
 }
 
-function lineaContexto(valor, variable, isImc, breve) {
-  const ctx = contextoNacional(valor, variable, isImc);
+// Sin rótulo, la marca de la mediana se confunde con un adorno
+function rotuloMediana(bar) {
+  if (bar.medianaPos == null || !bar.medianaRotulo) return "";
+  const x = Math.min(94, Math.max(6, bar.medianaPos));
+  return `<div class="escala-pie"><span style="left:${x}%">${bar.medianaRotulo}</span></div>`;
+}
+
+function lineaContexto(valor, variable, isImc, punto, breve) {
+  const ctx = contextoRegional(valor, variable, isImc, punto);
   if (!ctx) return "";
-  return `<div class="info-contexto">${breve ? ctx.breve : ctx.texto}</div>`;
+  const txt = breve ? ctx.breve : ctx.texto;
+  return txt ? `<div class="info-contexto">${txt}</div>` : "";
 }
 
 // La ficha no muestra una barra de llenado sino la posición del valor
@@ -418,12 +516,13 @@ function bandaDeEscala(colores) {
   return `linear-gradient(90deg, ${tramos.join(", ")})`;
 }
 
-function climateBarConfig(variable, valor) {
+function climateBarConfig(variable, valor, punto) {
   if (valor == null) return null;
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
   const escala = escalaDe(variable);
   if (!escala) return null;
+  const grupo = punto ? datosRegionales(punto) : null;
 
   const { bins, colores } = escala;
   const esPrec = variable === "pr";
@@ -432,7 +531,8 @@ function climateBarConfig(variable, valor) {
 
   return {
     pos: posicionEnEscala(v, bins, colores),
-    medianaPos: resumenCapa ? posicionEnEscala(resumenCapa.mediana, bins, colores) : null,
+    medianaPos: grupo ? posicionEnEscala(grupo.mediana, bins, colores) : null,
+    medianaRotulo: grupo ? `mediana ${nombreDeUnidad(grupo.props).nombre}` : null,
     color: getClimateColor(v, variable),
     // Los tonos claros del centro de la escala no se leen como texto:
     // la cifra usa un color propio, con el sentido del cambio.
@@ -566,7 +666,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
     const tinte = IMC_COLORS_TEXTO[lbl] || "#888";
     rows.push({ k: "Categoría", v: `<span style="font-weight:700;color:${tinte}">${lbl}</span>` });
     rows.push({ k: "Valor IMC", v: fmt, highlight: true });
-    const bar = imcBarConfig(valor);
+    const bar = imcBarConfig(valor, punto);
     if (bar) {
       barHtml = `
       <div class="info-value-bar-wrap">
@@ -577,7 +677,8 @@ function construirInfoHTML(props, variable, isImc, punto) {
           ${marcaMediana(bar.medianaPos)}
           <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
         </div>
-        ${lineaContexto(valor, null, true)}
+        ${rotuloMediana(bar)}
+        ${lineaContexto(valor, null, true, punto)}
       </div>`;
     }
     interpretHtml = `<div class="info-interpret">${IMC_DESC[lbl] || ""}</div>`;
@@ -589,7 +690,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
     rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
     rows.push({ k: "Cambio",   v: fmt, highlight: true });
 
-    const bar = climateBarConfig(variable, valor);
+    const bar = climateBarConfig(variable, valor, punto);
     if (bar) {
       barHtml = `
         <div class="info-value-bar-wrap">
@@ -603,7 +704,8 @@ function construirInfoHTML(props, variable, isImc, punto) {
             ${marcaMediana(bar.medianaPos)}
             <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
           </div>
-          ${lineaContexto(valor, variable, false)}
+          ${rotuloMediana(bar)}
+          ${lineaContexto(valor, variable, false, punto)}
         </div>`;
     }
     const interp = climateInterpret(variable, valor);
@@ -619,25 +721,60 @@ function construirInfoHTML(props, variable, isImc, punto) {
 }
 
 
-// Centro del polígono si cae dentro; si no, el promedio de sus vértices.
-function puntoRepresentativo(layer) {
-  const b = layer.getBounds();
-  const c = b.getCenter();
-  const geom = layer.feature && layer.feature.geometry;
-  if (geom && puntoEnGeometria(c.lat, c.lng, geom)) return c;
-  if (geom) {
-    const poly = geom.type === "Polygon" ? geom.coordinates
-               : geom.type === "MultiPolygon" ? geom.coordinates[0]
-               : null;
-    if (poly && poly[0] && poly[0].length) {
-      let sx = 0, sy = 0;
-      for (const [x, y] of poly[0]) { sx += x; sy += y; }
-      const n = poly[0].length;
-      const m = L.latLng(sy / n, sx / n);
-      if (puntoEnGeometria(m.lat, m.lng, geom)) return m;
-    }
+// Punto interior garantizado. El centro del rectángulo envolvente sirve
+// para la mayoría de los territorios, pero en los de forma cóncava cae
+// fuera —y el distrito se atribuía al departamento vecino—, y en los
+// archipiélagos cae en el agua que separa las islas. Se recorre entonces
+// cada parte, de la mayor a la menor, cortándola con una recta horizontal
+// y tomando el centro del tramo interior más ancho.
+function centroDeParte(anillo) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of anillo) {
+    if (x < x0) x0 = x;
+    if (x > x1) x1 = x;
+    if (y < y0) y0 = y;
+    if (y > y1) y1 = y;
   }
-  return c;
+  return { lat: (y0 + y1) / 2, lng: (x0 + x1) / 2, extension: (x1 - x0) * (y1 - y0) };
+}
+
+function cortarEnLatitud(anillo, lat, geom) {
+  const cortes = [];
+  for (let i = 0, j = anillo.length - 1; i < anillo.length; j = i++) {
+    const [xi, yi] = anillo[i], [xj, yj] = anillo[j];
+    if ((yi > lat) !== (yj > lat)) cortes.push(xi + ((xj - xi) * (lat - yi)) / (yj - yi));
+  }
+  if (cortes.length < 2) return null;
+  cortes.sort((p, q) => p - q);
+  let mejor = null, ancho = -1;
+  for (let k = 0; k + 1 < cortes.length; k += 2) {
+    const medio = (cortes[k] + cortes[k + 1]) / 2;
+    const largo = cortes[k + 1] - cortes[k];
+    if (largo > ancho && puntoEnGeometria(lat, medio, geom)) { ancho = largo; mejor = medio; }
+  }
+  return mejor == null ? null : L.latLng(lat, mejor);
+}
+
+function puntoRepresentativo(layer) {
+  const centro = layer.getBounds().getCenter();
+  const geom = layer.feature && layer.feature.geometry;
+  if (!geom) return centro;
+  if (puntoEnGeometria(centro.lat, centro.lng, geom)) return centro;
+
+  const partes = geom.type === "Polygon" ? [geom.coordinates]
+               : geom.type === "MultiPolygon" ? geom.coordinates
+               : [];
+  const candidatas = partes
+    .filter(p => p.length && p[0].length > 2)
+    .map(p => ({ anillo: p[0], ...centroDeParte(p[0]) }))
+    .sort((a, b) => b.extension - a.extension);
+
+  for (const c of candidatas) {
+    if (puntoEnGeometria(c.lat, c.lng, geom)) return L.latLng(c.lat, c.lng);
+    const punto = cortarEnLatitud(c.anillo, c.lat, geom);
+    if (punto) return punto;
+  }
+  return centro;
 }
 
 
@@ -685,29 +822,31 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     color = IMC_COLORS_TEXTO[lbl] || "#888";
     cifra = valor != null ? parseFloat(valor).toFixed(3) : "—";
     etiqueta = `Índice Multipeligro · ${lbl}`;
-    const bar = imcBarConfig(valor);
+    const bar = imcBarConfig(valor, punto);
     if (bar) barra = `<div class="escala-banda compacta" style="background:${bar.banda}">
       ${marcaMediana(bar.medianaPos)}
-      <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>`;
+      <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>
+      ${rotuloMediana(bar)}`;
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
       ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unidad}`
       : "Sin dato";
     etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
-    const cfg = climateBarConfig(variable, valor);
+    const cfg = climateBarConfig(variable, valor, punto);
     color = cfg ? cfg.colorTexto : "#888";
     if (cfg) barra = `<div class="escala-banda compacta" style="background:${cfg.banda}">
       ${cfg.cero != null ? `<span class="escala-cero" style="left:${cfg.cero}%"></span>` : ""}
       ${marcaMediana(cfg.medianaPos)}
-      <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>`;
+      <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>
+      ${rotuloMediana(cfg)}`;
     const interp = climateInterpret(variable, valor);
     if (interp) texto = interp.text;
   }
 
   const ubica = ref ? `${ref.etiqueta}: ${ref.valor}` : "";
 
-  const contexto = lineaContexto(valor, variable, isImc, true);
+  const contexto = lineaContexto(valor, variable, isImc, punto, true);
 
   return `<button class="ic-manija" id="icManija" aria-label="Extender la ficha"></button>
           <div class="ic-cabecera">
@@ -1379,7 +1518,6 @@ const esMovil = () => MOBILE_QUERY.matches;
 const sidebar        = document.getElementById("sidebar");
 const sidebarToggle  = document.getElementById("sidebarToggle");
 const sidebarOverlay = document.getElementById("sidebarOverlay");
-const sidebarClose   = document.getElementById("sidebarClose");
 
 function abrirSidebar() {
   sidebar.classList.add("open");
@@ -1401,7 +1539,6 @@ sidebarToggle.addEventListener("click", () => {
   sidebar.classList.contains("open") ? cerrarSidebar() : abrirSidebar();
 });
 sidebarOverlay.addEventListener("click", cerrarSidebar);
-sidebarClose.addEventListener("click", cerrarSidebar);
 
 ["varGroup", "refLayerGroup", "seasonGroup"].forEach(id => {
   const grupo = document.getElementById(id);
