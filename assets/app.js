@@ -49,7 +49,7 @@ function imcBarConfig(valor, punto) {
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
   const grupo = punto ? datosRegionales(punto) : null;
-  const med = etiquetasMediana(grupo);
+  const med = etiquetasMediana(grupo, null, true);
   const paso = 100 / IMC_ORDEN.length;
   const tramos = IMC_ORDEN.map((cat, i) =>
     `${IMC_COLORS[cat]} ${(i * paso).toFixed(3)}%, ${IMC_COLORS[cat]} ${((i + 1) * paso).toFixed(3)}%`);
@@ -314,8 +314,8 @@ function signo(valor, variable) {
 // El punto de referencia del grupo es la mediana y no la media: en
 // precipitación la distribución está muy sesgada por la costa norte
 // —media +3,7 % frente a mediana −0,5 %, de signo opuesto—, y la media
-// daría una referencia engañosa. En la ficha no se la nombra: se enuncia
-// lo que significa, que la mitad del grupo queda a cada lado.
+// daría una referencia engañosa. Va rotulada en la escala y no en el
+// texto, con su valor y su definición en el título.
 let cacheRegional = { clave: null, datos: null };
 
 function distritosDeLaUnidad(unidad) {
@@ -431,18 +431,28 @@ function contextoRegional(valor, variable, isImc, punto) {
     : `${delante} de los ${total} distritos ${lugar} ${delante === 1 ? habla.sg : habla.pl}.`;
 }
 
-// Rótulo y explicación de la marca. Sin rótulo se confunde con un adorno,
-// y con la palabra «mediana» se confunde con jerga: dice a qué territorio
-// pertenece la referencia y el título completo, lo que la marca separa.
-function etiquetasMediana(grupo) {
+// La marca se nombra por lo que es. El territorio no hace falta repetirlo
+// —la frase de abajo ya lo dice— y el adjetivo cabe donde no cabía el
+// nombre de una unidad hidrográfica.
+const ROTULO_MEDIANA = {
+  departamentos: "mediana departamental",
+  provincias:    "mediana provincial",
+  cuencas:       "mediana de la cuenca",
+};
+
+// Sin rótulo la marca se confunde con un adorno; el título da su valor y
+// dice en una línea qué separa, para quien no maneje el término.
+function etiquetasMediana(grupo, variable, isImc) {
   if (!grupo) return { rotulo: null, titulo: "" };
   const donde = nombreDeUnidad(grupo.props);
   if (!donde.nombre) return { rotulo: null, titulo: "" };
-  const nombre = escaparHTML(donde.nombre);
+  const unidad = isImc ? "" : (variable === "pr" ? " %" : " °C");
+  const cifra = `${isImc ? "" : signo(grupo.mediana, variable)}` +
+                `${grupo.mediana.toFixed(isImc ? 3 : 1)}${unidad}`;
   return {
-    rotulo: `mitad de ${nombre}`,
-    titulo: `La mitad de los ${grupo.valores.length} distritos ${donde.articulo} ` +
-            `${nombre} queda a cada lado de esta línea`,
+    rotulo: ROTULO_MEDIANA[state.refLayer] || "mediana del grupo",
+    titulo: `Mediana de los ${grupo.valores.length} distritos ${donde.articulo} ` +
+            `${escaparHTML(donde.nombre)}: ${cifra}. La mitad queda a cada lado.`,
   };
 }
 
@@ -521,7 +531,7 @@ function climateBarConfig(variable, valor, punto) {
   const escala = escalaDe(variable);
   if (!escala) return null;
   const grupo = punto ? datosRegionales(punto) : null;
-  const med = etiquetasMediana(grupo);
+  const med = etiquetasMediana(grupo, variable, false);
 
   const { bins, colores } = escala;
   const esPrec = variable === "pr";

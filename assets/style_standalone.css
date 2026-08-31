@@ -1444,8 +1444,8 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   background: rgba(28,44,74,0.55);
 }
 
-/* Mitad del grupo de referencia: separa los distritos que suben o bajan
-   más de la mediana de los que lo hacen menos */
+/* Mediana del grupo de referencia: deja la mitad de sus distritos a cada
+   lado, y la distancia hasta el punto es cuánto se aparta este de ella */
 .escala-mediana {
   position: absolute;
   top: -3px;
