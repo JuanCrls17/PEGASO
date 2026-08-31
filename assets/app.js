@@ -49,13 +49,15 @@ function imcBarConfig(valor, punto) {
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
   const grupo = punto ? datosRegionales(punto) : null;
+  const med = etiquetasMediana(grupo);
   const paso = 100 / IMC_ORDEN.length;
   const tramos = IMC_ORDEN.map((cat, i) =>
     `${IMC_COLORS[cat]} ${(i * paso).toFixed(3)}%, ${IMC_COLORS[cat]} ${((i + 1) * paso).toFixed(3)}%`);
   return {
     pos: Math.min(100, Math.max(0, v * 100)),
-    medianaPos: grupo ? Math.min(100, Math.max(0, grupo.mediana * 100)) : null,
-    medianaRotulo: grupo ? `mediana ${nombreDeUnidad(grupo.props).nombre}` : null,
+    medianaPos: med.rotulo ? Math.min(100, Math.max(0, grupo.mediana * 100)) : null,
+    medianaRotulo: med.rotulo,
+    medianaTitulo: med.titulo,
     color: getImcColor(v),
     banda: `linear-gradient(90deg, ${tramos.join(", ")})`,
     cero: null,
@@ -85,7 +87,6 @@ let imcLayer        = null;
 let refGeoLayer     = null;
 let searchMarker    = null;
 let selectedFeature = null;
-let resumenCapa     = null;   // distribución nacional de la capa en uso
 
 const mapContainer = document.querySelector(".map-container");
 
@@ -303,51 +304,18 @@ function signo(valor, variable) {
   return variable !== "pr" && parseFloat(valor) >= 0 ? "+" : "";
 }
 
-// ─── Contexto nacional ────────────────────────────────────
-// Un valor suelto no dice si es mucho o poco. El resumen de la capa se
-// calcula una sola vez al cargarla y permite situar cada distrito frente
-// a los 1891 del país sin ninguna descarga adicional.
-//
-// Se usa la mediana y no la media: en precipitación la distribución está
-// muy sesgada por la costa norte —media +3,7 % frente a mediana −0,5 %,
-// de signo opuesto—, y la media daría una referencia engañosa.
-function resumirCapa(features) {
-  const v = [];
-  for (const f of features) {
-    const x = f.properties ? f.properties.valor : null;
-    if (x == null) continue;
-    const n = parseFloat(x);
-    if (!isNaN(n)) v.push(n);
-  }
-  if (!v.length) return null;
-  v.sort((a, b) => a - b);
-  const m = v.length;
-  const mediana = m % 2 ? v[(m - 1) / 2] : (v[m / 2 - 1] + v[m / 2]) / 2;
-  return { valores: v, mediana };
-}
-
-// Percentil de rango medio: los empates reparten su posición, de modo que
-// dos distritos con el mismo valor reciben el mismo percentil.
-function percentilDe(valor, ordenados) {
-  const v = parseFloat(valor);
-  if (isNaN(v) || !ordenados.length) return null;
-  const fin = ordenados.length;
-
-  let a = 0, b = fin;
-  while (a < b) { const m = (a + b) >> 1; if (ordenados[m] < v) a = m + 1; else b = m; }
-  const menores = a;
-
-  b = fin;
-  while (a < b) { const m = (a + b) >> 1; if (ordenados[m] <= v) a = m + 1; else b = m; }
-  const iguales = a - menores;
-
-  return ((menores + iguales / 2) / fin) * 100;
-}
-
-// Comparación dentro de la unidad de referencia activa —departamento,
+// ─── Contexto regional ────────────────────────────────────
+// Un valor suelto no dice si es mucho o poco. La ficha lo compara con los
+// demás distritos de la unidad de referencia activa —departamento,
 // provincia o cuenca—, que suele ser el marco en el que se decide. Se
 // resuelve solo para la unidad consultada, no para las 25 o las 231, y se
 // guarda en caché mientras no cambien ni los datos ni la referencia.
+//
+// El punto de referencia del grupo es la mediana y no la media: en
+// precipitación la distribución está muy sesgada por la costa norte
+// —media +3,7 % frente a mediana −0,5 %, de signo opuesto—, y la media
+// daría una referencia engañosa. En la ficha no se la nombra: se enuncia
+// lo que significa, que la mitad del grupo queda a cada lado.
 let cacheRegional = { clave: null, datos: null };
 
 function distritosDeLaUnidad(unidad) {
@@ -390,18 +358,18 @@ function datosRegionales(punto) {
   return { ...cacheRegional.datos, props: cacheRegional.props };
 }
 
-// Puesto del valor dentro del grupo, contando desde el extremo que
-// interesa: el mayor aumento, la mayor reducción o la mayor exposición.
-function puestoEn(valor, ordenados, descendente) {
+// Cuántos distritos del grupo quedan por delante del valor, contando desde
+// el extremo que interesa: el mayor aumento, la mayor reducción o la mayor
+// exposición. Los empates no cuentan como delantera, de modo que dos
+// distritos con el mismo valor reciben la misma lectura.
+function cuantosSuperan(valor, ordenados, descendente) {
   const v = parseFloat(valor);
-  let mejores = 0;
+  let n = 0;
   for (const x of ordenados) {
-    if (descendente ? x > v : x < v) mejores++;
+    if (descendente ? x > v : x < v) n++;
   }
-  return mejores + 1;
+  return n;
 }
-
-const ORDINAL = ["", "1.º", "2.º", "3.º", "4.º", "5.º", "6.º", "7.º", "8.º", "9.º", "10.º"];
 
 const MINUSCULAS = new Set(["de", "del", "la", "las", "los", "y"]);
 
@@ -439,36 +407,89 @@ function contextoRegional(valor, variable, isImc, punto) {
   if (!donde.nombre) return null;
 
   const v = parseFloat(valor);
-  const unidadTxt = isImc ? "" : (variable === "pr" ? " %" : " °C");
-  const dec = isImc ? 3 : 1;
-  const medFmt = `${isImc ? "" : signo(grupo.mediana, variable)}${grupo.mediana.toFixed(dec)}${unidadTxt}`;
   const total = grupo.valores.length;
+  const lugar = `${donde.articulo} ${escaparHTML(donde.nombre)}`;
 
   if (total === 1) {
-    return { texto: `Único distrito ${donde.articulo} ${donde.nombre} con dato.`, breve: "" };
+    return { texto: `Único distrito ${lugar} con dato.`, breve: "" };
   }
 
   // En precipitación el extremo relevante depende del signo del cambio
   const reduce = variable === "pr" && !isImc && v < 0;
-  const puesto = puestoEn(v, grupo.valores, !reduce);
-  const orden = ORDINAL[puesto] || `${puesto}.º`;
-  const criterio = isImc ? "mayor exposición"
-                 : reduce ? "mayor reducción"
-                 : "mayor aumento";
+  const delante = cuantosSuperan(v, grupo.valores, !reduce);
+  // Se dice lo que hacen los distritos que quedan por delante en vez del
+  // puesto que ocupa este: «51 de los 84 bajan más que este» se entiende
+  // de una lectura, y «52.º con mayor reducción» hay que descifrarlo.
+  const habla = isImc  ? { pl: "están más expuestos que este", sg: "está más expuesto que este" }
+              : reduce ? { pl: "bajan más que este",           sg: "baja más que este" }
+              :          { pl: "suben más que este",           sg: "sube más que este" };
+  const posicion = delante === 0
+    ? `Ninguno de los ${total} distritos ${lugar} ${habla.sg}.`
+    : `${delante} de los ${total} distritos ${lugar} ${delante === 1 ? habla.sg : habla.pl}.`;
 
-  const sitio = `${orden} de ${total} distritos ${donde.articulo} ${donde.nombre}`;
   return {
-    texto: `${sitio} con ${criterio}. Mediana ${donde.articulo} ${donde.nombre}: ${medFmt}.`,
-    breve: `${sitio} con ${criterio}.`,
+    texto: `${posicion} ${fraseMediana(grupo.mediana, total, variable, isImc)}`,
+    breve: posicion,
   };
 }
 
-function marcaMediana(pos) {
-  if (pos == null) return "";
-  return `<span class="escala-mediana" style="left:${pos}%"></span>`;
+// La mediana, enunciada: «la mitad de los 84 distritos baja más de 3.7 %»
+// es la misma cifra que «mediana −3.7 %», pero no exige saber qué es una
+// mediana. Se repite el total en lugar de decir «ellos» porque el
+// pronombre señalaría a los distritos que la frase anterior acaba de
+// contar, que son solo una parte del grupo.
+function fraseMediana(med, total, variable, isImc) {
+  const cuantos = `La mitad de los ${total} distritos`;
+  if (isImc) return `${cuantos} supera ${med.toFixed(3)}.`;
+  const unidad = variable === "pr" ? " %" : " °C";
+  const a = Math.abs(med);
+  // Una mediana que se redondearía a cero no se puede enunciar como subida
+  // ni como bajada sin exagerar su tamaño
+  if (a < 5e-4) return `${cuantos} sube y la otra mitad baja.`;
+  const cifra = parseFloat(a.toFixed(1)) === 0 ? a.toPrecision(1) : a.toFixed(1);
+  return med > 0
+    ? `${cuantos} sube más de ${cifra}${unidad}.`
+    : `${cuantos} baja más de ${cifra}${unidad}.`;
 }
 
-// Sin rótulo, la marca de la mediana se confunde con un adorno
+// Rótulo y explicación de la marca. Sin rótulo se confunde con un adorno,
+// y con la palabra «mediana» se confunde con jerga: dice a qué territorio
+// pertenece la referencia y el título completo, lo que la marca separa.
+function etiquetasMediana(grupo) {
+  if (!grupo) return { rotulo: null, titulo: "" };
+  const donde = nombreDeUnidad(grupo.props);
+  if (!donde.nombre) return { rotulo: null, titulo: "" };
+  const nombre = escaparHTML(donde.nombre);
+  return {
+    rotulo: `mitad de ${nombre}`,
+    titulo: `La mitad de los ${grupo.valores.length} distritos ${donde.articulo} ` +
+            `${nombre} queda a cada lado de esta línea`,
+  };
+}
+
+function marcaMediana(bar) {
+  if (bar.medianaPos == null) return "";
+  return `<span class="escala-mediana" title="${bar.medianaTitulo}" style="left:${bar.medianaPos}%"></span>`;
+}
+
+// El rótulo va centrado bajo su marca, pero junto a los extremos de la
+// banda no cabría entero: se desplaza lo justo para no salirse de la ficha
+// y la pequeña guía que lo une a la línea se mueve al revés, de modo que
+// sigue apuntando a la marca.
+function ajustarRotuloMediana(caja) {
+  const pie = caja.querySelector(".escala-pie");
+  const texto = pie && pie.firstElementChild;
+  if (!texto) return;
+  const marco = pie.getBoundingClientRect();
+  const r = texto.getBoundingClientRect();
+  const ajuste = r.left < marco.left ? marco.left - r.left
+               : r.right > marco.right ? marco.right - r.right
+               : 0;
+  if (!ajuste) return;
+  texto.style.transform = `translateX(calc(-50% + ${ajuste.toFixed(1)}px))`;
+  texto.style.setProperty("--guia", `${(-ajuste).toFixed(1)}px`);
+}
+
 function rotuloMediana(bar) {
   if (bar.medianaPos == null || !bar.medianaRotulo) return "";
   const x = Math.min(94, Math.max(6, bar.medianaPos));
@@ -523,6 +544,7 @@ function climateBarConfig(variable, valor, punto) {
   const escala = escalaDe(variable);
   if (!escala) return null;
   const grupo = punto ? datosRegionales(punto) : null;
+  const med = etiquetasMediana(grupo);
 
   const { bins, colores } = escala;
   const esPrec = variable === "pr";
@@ -531,8 +553,9 @@ function climateBarConfig(variable, valor, punto) {
 
   return {
     pos: posicionEnEscala(v, bins, colores),
-    medianaPos: grupo ? posicionEnEscala(grupo.mediana, bins, colores) : null,
-    medianaRotulo: grupo ? `mediana ${nombreDeUnidad(grupo.props).nombre}` : null,
+    medianaPos: med.rotulo ? posicionEnEscala(grupo.mediana, bins, colores) : null,
+    medianaRotulo: med.rotulo,
+    medianaTitulo: med.titulo,
     color: getClimateColor(v, variable),
     // Los tonos claros del centro de la escala no se leen como texto:
     // la cifra usa un color propio, con el sentido del cambio.
@@ -674,7 +697,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
           <span>${bar.minLabel}</span><span>${bar.midLabel}</span><span>${bar.maxLabel}</span>
         </div>
         <div class="escala-banda" style="background:${bar.banda}">
-          ${marcaMediana(bar.medianaPos)}
+          ${marcaMediana(bar)}
           <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
         </div>
         ${rotuloMediana(bar)}
@@ -701,7 +724,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
           </div>
           <div class="escala-banda" style="background:${bar.banda}">
             ${bar.cero != null ? `<span class="escala-cero" style="left:${bar.cero}%"></span>` : ""}
-            ${marcaMediana(bar.medianaPos)}
+            ${marcaMediana(bar)}
             <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
           </div>
           ${rotuloMediana(bar)}
@@ -824,7 +847,7 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     etiqueta = `Índice Multipeligro · ${lbl}`;
     const bar = imcBarConfig(valor, punto);
     if (bar) barra = `<div class="escala-banda compacta" style="background:${bar.banda}">
-      ${marcaMediana(bar.medianaPos)}
+      ${marcaMediana(bar)}
       <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>
       ${rotuloMediana(bar)}`;
   } else {
@@ -837,7 +860,7 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     color = cfg ? cfg.colorTexto : "#888";
     if (cfg) barra = `<div class="escala-banda compacta" style="background:${cfg.banda}">
       ${cfg.cero != null ? `<span class="escala-cero" style="left:${cfg.cero}%"></span>` : ""}
-      ${marcaMediana(cfg.medianaPos)}
+      ${marcaMediana(cfg)}
       <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>
       ${rotuloMediana(cfg)}`;
     const interp = climateInterpret(variable, valor);
@@ -1032,7 +1055,9 @@ function mostrarInfo(props) {
       .openOn(map);
     setTimeout(() => {
       const globo = document.querySelector(".info-popup");
-      if (globo) evitarChoqueConLeyenda(globo);
+      if (!globo) return;
+      ajustarRotuloMediana(globo);
+      evitarChoqueConLeyenda(globo);
     }, 60);
     return;
   }
@@ -1054,6 +1079,7 @@ function mostrarInfo(props) {
     panel.style.top = (r.bottom - c.top + 10) + "px";
   }
   panel.style.display = "block";
+  ajustarRotuloMediana(panel);
   evitarChoqueConLeyenda(panel);
 
   const manija = document.getElementById("icManija");
@@ -1151,7 +1177,6 @@ function quitarCapasDeDatos() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   if (imcLayer)     { map.removeLayer(imcLayer);     imcLayer     = null; }
   selectedFeature = null;
-  resumenCapa = null;
 }
 
 async function cargarDatos() {
@@ -1170,7 +1195,6 @@ async function cargarDatos() {
     const data = await fetchGeoJSON(archivo);
     if (generacion !== generacionDatos) return;
 
-    resumenCapa = resumirCapa(data.features);
     const base = esImc ? ESTILO_IMC : ESTILO_CLIMA;
     const capa = L.geoJSON(data, {
       style: feat => Object.assign({

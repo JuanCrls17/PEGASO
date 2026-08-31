@@ -1281,7 +1281,7 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   content: "";
   position: absolute;
   top: -3px;
-  left: 50%;
+  left: calc(50% + var(--guia, 0px));
   width: 1px;
   height: 3px;
   background: #9aa8bd;
@@ -1444,7 +1444,8 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   background: rgba(28,44,74,0.55);
 }
 
-/* Mediana nacional: referencia para saber si el valor es alto o bajo */
+/* Mitad del grupo de referencia: separa los distritos que suben o bajan
+   más de la mediana de los que lo hacen menos */
 .escala-mediana {
   position: absolute;
   top: -3px;
