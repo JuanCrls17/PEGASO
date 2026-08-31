@@ -1255,6 +1255,12 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   margin-top: 3px;
 }
 
+.map-info-panel.compacto .info-contexto {
+  margin-top: 5px;
+  font-size: 0.66rem;
+  color: #4d5a70;
+}
+
 .ic-periodo {
   font-size: 0.58rem;
   color: #98a3b2;
@@ -1406,8 +1412,21 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   background: rgba(28,44,74,0.55);
 }
 
+/* Mediana nacional: referencia para saber si el valor es alto o bajo */
+.escala-mediana {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 0 0 1px rgba(24,42,78,0.55);
+}
+
 .escala-marca {
   position: absolute;
+  z-index: 2;
   top: 50%;
   width: 11px;
   height: 11px;
@@ -1423,6 +1442,13 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   height: 10px;
   margin: -5px 0 0 -5px;
   border-width: 1.5px;
+}
+
+.info-contexto {
+  margin-top: 7px;
+  font-size: 0.68rem;
+  line-height: 1.42;
+  color: #55627a;
 }
 
 .info-interpret {

@@ -53,6 +53,7 @@ function imcBarConfig(valor) {
     `${IMC_COLORS[cat]} ${(i * paso).toFixed(3)}%, ${IMC_COLORS[cat]} ${((i + 1) * paso).toFixed(3)}%`);
   return {
     pos: Math.min(100, Math.max(0, v * 100)),
+    medianaPos: resumenCapa ? Math.min(100, Math.max(0, resumenCapa.mediana * 100)) : null,
     color: getImcColor(v),
     banda: `linear-gradient(90deg, ${tramos.join(", ")})`,
     cero: null,
@@ -82,6 +83,7 @@ let imcLayer        = null;
 let refGeoLayer     = null;
 let searchMarker    = null;
 let selectedFeature = null;
+let resumenCapa     = null;   // distribución nacional de la capa en uso
 
 const mapContainer = document.querySelector(".map-container");
 
@@ -299,6 +301,89 @@ function signo(valor, variable) {
   return variable !== "pr" && parseFloat(valor) >= 0 ? "+" : "";
 }
 
+// ─── Contexto nacional ────────────────────────────────────
+// Un valor suelto no dice si es mucho o poco. El resumen de la capa se
+// calcula una sola vez al cargarla y permite situar cada distrito frente
+// a los 1891 del país sin ninguna descarga adicional.
+//
+// Se usa la mediana y no la media: en precipitación la distribución está
+// muy sesgada por la costa norte —media +3,7 % frente a mediana −0,5 %,
+// de signo opuesto—, y la media daría una referencia engañosa.
+function resumirCapa(features) {
+  const v = [];
+  for (const f of features) {
+    const x = f.properties ? f.properties.valor : null;
+    if (x == null) continue;
+    const n = parseFloat(x);
+    if (!isNaN(n)) v.push(n);
+  }
+  if (!v.length) return null;
+  v.sort((a, b) => a - b);
+  const m = v.length;
+  const mediana = m % 2 ? v[(m - 1) / 2] : (v[m / 2 - 1] + v[m / 2]) / 2;
+  return { valores: v, mediana };
+}
+
+// Percentil de rango medio: los empates reparten su posición, de modo que
+// dos distritos con el mismo valor reciben el mismo percentil.
+function percentilDe(valor, ordenados) {
+  const v = parseFloat(valor);
+  if (isNaN(v) || !ordenados.length) return null;
+  const fin = ordenados.length;
+
+  let a = 0, b = fin;
+  while (a < b) { const m = (a + b) >> 1; if (ordenados[m] < v) a = m + 1; else b = m; }
+  const menores = a;
+
+  b = fin;
+  while (a < b) { const m = (a + b) >> 1; if (ordenados[m] <= v) a = m + 1; else b = m; }
+  const iguales = a - menores;
+
+  return ((menores + iguales / 2) / fin) * 100;
+}
+
+function contextoNacional(valor, variable, isImc) {
+  if (valor == null || !resumenCapa) return null;
+  const p = percentilDe(valor, resumenCapa.valores);
+  if (p == null) return null;
+
+  const unidad = isImc ? "" : (variable === "pr" ? " %" : " °C");
+  const dec = isImc ? 3 : 1;
+  const med = resumenCapa.mediana;
+  const medFmt = `${isImc ? "" : signo(med, variable)}${med.toFixed(dec)}${unidad}`;
+
+  const cuantos = Math.round(p);
+  // Cada magnitud lleva su propia concordancia: «exposición» es femenina
+  const habla = isImc
+    ? { sujeto: "Su exposición", supera: "supera a la de",
+        altos: "está entre las más altas del país", bajos: "está entre las más bajas del país" }
+    : { sujeto: variable === "pr" ? "Su cambio" : "Su aumento", supera: "supera al de",
+        altos: "está entre los más altos del país", bajos: "está entre los más bajos del país" };
+
+  let frase;
+  if (cuantos >= 99)      frase = `${habla.sujeto} ${habla.altos}`;
+  else if (cuantos <= 1)  frase = `${habla.sujeto} ${habla.bajos}`;
+  else if (cuantos >= 45 && cuantos <= 55)
+                          frase = `${habla.sujeto} se sitúa en torno a la mediana del país`;
+  else frase = `${habla.sujeto} ${habla.supera} ${cuantos} de cada 100 distritos`;
+
+  return {
+    texto: `${frase}. Mediana nacional: ${medFmt}.`,
+    breve: `${frase}.`,
+  };
+}
+
+function marcaMediana(pos) {
+  if (pos == null) return "";
+  return `<span class="escala-mediana" style="left:${pos}%" title="Mediana nacional"></span>`;
+}
+
+function lineaContexto(valor, variable, isImc, breve) {
+  const ctx = contextoNacional(valor, variable, isImc);
+  if (!ctx) return "";
+  return `<div class="info-contexto">${breve ? ctx.breve : ctx.texto}</div>`;
+}
+
 // La ficha no muestra una barra de llenado sino la posición del valor
 // dentro de la escala de la variable: la misma escala, en el mismo orden,
 // que la leyenda del mapa. Un cambio pequeño se lee como una marca junto
@@ -347,6 +432,7 @@ function climateBarConfig(variable, valor) {
 
   return {
     pos: posicionEnEscala(v, bins, colores),
+    medianaPos: resumenCapa ? posicionEnEscala(resumenCapa.mediana, bins, colores) : null,
     color: getClimateColor(v, variable),
     // Los tonos claros del centro de la escala no se leen como texto:
     // la cifra usa un color propio, con el sentido del cambio.
@@ -488,8 +574,10 @@ function construirInfoHTML(props, variable, isImc, punto) {
           <span>${bar.minLabel}</span><span>${bar.midLabel}</span><span>${bar.maxLabel}</span>
         </div>
         <div class="escala-banda" style="background:${bar.banda}">
+          ${marcaMediana(bar.medianaPos)}
           <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
         </div>
+        ${lineaContexto(valor, null, true)}
       </div>`;
     }
     interpretHtml = `<div class="info-interpret">${IMC_DESC[lbl] || ""}</div>`;
@@ -512,8 +600,10 @@ function construirInfoHTML(props, variable, isImc, punto) {
           </div>
           <div class="escala-banda" style="background:${bar.banda}">
             ${bar.cero != null ? `<span class="escala-cero" style="left:${bar.cero}%"></span>` : ""}
+            ${marcaMediana(bar.medianaPos)}
             <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
           </div>
+          ${lineaContexto(valor, variable, false)}
         </div>`;
     }
     const interp = climateInterpret(variable, valor);
@@ -597,6 +687,7 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     etiqueta = `Índice Multipeligro · ${lbl}`;
     const bar = imcBarConfig(valor);
     if (bar) barra = `<div class="escala-banda compacta" style="background:${bar.banda}">
+      ${marcaMediana(bar.medianaPos)}
       <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>`;
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
@@ -608,12 +699,15 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     color = cfg ? cfg.colorTexto : "#888";
     if (cfg) barra = `<div class="escala-banda compacta" style="background:${cfg.banda}">
       ${cfg.cero != null ? `<span class="escala-cero" style="left:${cfg.cero}%"></span>` : ""}
+      ${marcaMediana(cfg.medianaPos)}
       <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>`;
     const interp = climateInterpret(variable, valor);
     if (interp) texto = interp.text;
   }
 
   const ubica = ref ? `${ref.etiqueta}: ${ref.valor}` : "";
+
+  const contexto = lineaContexto(valor, variable, isImc, true);
 
   return `<button class="ic-manija" id="icManija" aria-label="Extender la ficha"></button>
           <div class="ic-cabecera">
@@ -623,6 +717,7 @@ function construirInfoCompacto(props, variable, isImc, punto) {
           <div class="ic-cifra" style="color:${color}">${cifra}</div>
           <div class="ic-meta">${etiqueta}</div>
           ${barra}
+          ${contexto}
           <div class="ic-periodo">${isImc ? "Índice normalizado · 2036–2065"
                                     : "2036–2065 respecto a 1981–2010"}</div>
           ${texto ? `<div class="ic-texto">${texto}</div>` : ""}`;
@@ -917,6 +1012,7 @@ function quitarCapasDeDatos() {
   if (climateLayer) { map.removeLayer(climateLayer); climateLayer = null; }
   if (imcLayer)     { map.removeLayer(imcLayer);     imcLayer     = null; }
   selectedFeature = null;
+  resumenCapa = null;
 }
 
 async function cargarDatos() {
@@ -935,6 +1031,7 @@ async function cargarDatos() {
     const data = await fetchGeoJSON(archivo);
     if (generacion !== generacionDatos) return;
 
+    resumenCapa = resumirCapa(data.features);
     const base = esImc ? ESTILO_IMC : ESTILO_CLIMA;
     const capa = L.geoJSON(data, {
       style: feat => Object.assign({
