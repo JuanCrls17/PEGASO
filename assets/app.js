@@ -1327,6 +1327,10 @@ function setSeasonBlocked(blocked) {
 document.querySelectorAll(".btn-season").forEach(btn => {
   btn.addEventListener("click", () => {
     if (btn.classList.contains("blocked")) return;
+    // Volver a pulsar la temporada ya aplicada no cambia nada, y recargar
+    // dejaría el mapa en blanco un instante para pintar lo mismo. Los demás
+    // grupos ya se guardaban de esto; este no.
+    if (state.estacion === btn.dataset.value) return;
     document.querySelectorAll(".btn-season").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     state.estacion = btn.dataset.value;
