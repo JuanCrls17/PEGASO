@@ -623,7 +623,8 @@ function construirInfoCompacto(props, variable, isImc, punto) {
           <div class="ic-cifra" style="color:${color}">${cifra}</div>
           <div class="ic-meta">${etiqueta}</div>
           ${barra}
-          <div class="ic-periodo">2036–2065 respecto a 1981–2010</div>
+          <div class="ic-periodo">${isImc ? "Índice normalizado · 2036–2065"
+                                    : "2036–2065 respecto a 1981–2010"}</div>
           ${texto ? `<div class="ic-texto">${texto}</div>` : ""}`;
 }
 
@@ -858,7 +859,8 @@ function buildClimateLegend(variable) {
   const bins   = isPrec ? PREC_BINS   : TEMP_BINS;
   const colors = isPrec ? PREC_COLORS : TEMP_COLORS;
   const unit   = isPrec ? "%" : "°C";
-  const title  = isPrec ? "Δ Precipitación (%)" : `Δ Temperatura (°C)`;
+  const title  = isPrec ? "Δ Precipitación (%)"
+                        : `Δ ${NOMBRE_VARIABLE[variable]} (°C)`;
 
   const items = colors.map((c, i) => {
     const lo = bins[i], hi = bins[i + 1];
@@ -895,7 +897,7 @@ function buildImcLegend() {
 
   el.innerHTML = `
     <div class="legend-title">Índice Multipeligro Climático</div>
-    <div class="legend-ref-note">Cambio respecto a 1981–2010</div>
+    <div class="legend-ref-note">Índice normalizado de 0 a 1 · 2036–2065</div>
     ${items}`;
 }
 
@@ -994,7 +996,7 @@ async function cargarReferencia(key) {
 
 // ─── Helpers de etiquetas ─────────────────────────────────
 function seasonLabel(v) {
-  return { anual:"Anual", DEF:"Verano (DJF)", MAM:"Otoño (MAM)", JJA:"Invierno (JJA)", SON:"Primavera (SON)" }[v] || v;
+  return { anual:"Anual", DEF:"Verano (DEF)", MAM:"Otoño (MAM)", JJA:"Invierno (JJA)", SON:"Primavera (SON)" }[v] || v;
 }
 
 // ─── Radio group genérico ─────────────────────────────────

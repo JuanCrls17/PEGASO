@@ -1688,7 +1688,8 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
 
 .footer-right { text-align: right; }
 
-.footer-attr {
+.footer-attr,
+.footer-scm {
   display: block;
   font-size: 0.56rem;
   color: rgba(255,255,255,0.34);
@@ -1972,7 +1973,7 @@ body.no-scroll { overflow: hidden; }
 @media (max-width: 768px) {
   :root {
     --navbar-h: 56px;
-    --footer-h: 26px;
+    --footer-h: 32px;
     --sidebar-w: 86vw;
   }
 
@@ -2255,7 +2256,7 @@ body.no-scroll { overflow: hidden; }
     justify-content: center;
   }
 
-  .footer-left { font-size: 0.55rem; text-align: center; }
+  .footer-left { font-size: 0.55rem; text-align: center; line-height: 1.35; }
   .footer-right { display: none; }
 }
 
