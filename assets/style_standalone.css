@@ -1255,33 +1255,6 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   margin-top: 3px;
 }
 
-.ic-barra {
-  position: relative;
-  height: 6px;
-  border-radius: 3px;
-  background: #e8ecf2;
-  overflow: hidden;
-  margin: 9px 0 6px;
-}
-
-.ic-barra > div {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  min-width: 3px;
-  border-radius: 3px;
-}
-
-.ic-barra-cero {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  margin-left: -0.5px;
-  background: #9aa8bd;
-  z-index: 1;
-}
-
 .ic-periodo {
   font-size: 0.58rem;
   color: #98a3b2;
@@ -1410,34 +1383,48 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
-.info-value-bar-track {
-  background: rgba(160,180,206,0.30);
-  height: 8px;
-  border-radius: 4px;
-  background: #dde3ee;
-  overflow: hidden;
+/* Escala de la variable, en el mismo orden que la leyenda del mapa, con
+   una marca en la posición del valor consultado. */
+.escala-banda {
   position: relative;
-}
-.info-value-bar-fill {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  min-width: 3px;
-  border-radius: 4px;
-  transition: width 0.5s cubic-bezier(0.22,1,0.36,1),
-              left  0.5s cubic-bezier(0.22,1,0.36,1);
+  height: 11px;
+  border-radius: 3px;
+  border: 1px solid rgba(120,138,166,0.35);
 }
 
-/* Marca del cero: el trazo nace aquí y crece hacia el lado del cambio */
-.info-value-bar-cero {
+.escala-banda.compacta {
+  height: 9px;
+  margin: 9px 0 6px;
+}
+
+.escala-cero {
   position: absolute;
-  top: -1px;
-  bottom: -1px;
+  top: -2px;
+  bottom: -2px;
   width: 1px;
   margin-left: -0.5px;
-  background: #97a6bd;
-  z-index: 1;
+  background: rgba(28,44,74,0.55);
 }
+
+.escala-marca {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  margin: -5.5px 0 0 -5.5px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(20,40,80,0.45), 0 1px 4px rgba(10,25,55,0.35);
+  transition: left 0.45s cubic-bezier(0.22,1,0.36,1);
+}
+
+.escala-banda.compacta .escala-marca {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-width: 1.5px;
+}
+
 .info-interpret {
   margin-top: 7px;
   font-size: 0.72rem;

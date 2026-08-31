@@ -42,6 +42,24 @@ const IMC_COLORS_TEXTO = {
   "Bajo":     "#3f7d46",
 };
 
+const IMC_ORDEN = ["Bajo", "Medio", "Alto", "Muy Alto"];
+
+function imcBarConfig(valor) {
+  if (valor == null) return null;
+  const v = parseFloat(valor);
+  if (isNaN(v)) return null;
+  const paso = 100 / IMC_ORDEN.length;
+  const tramos = IMC_ORDEN.map((cat, i) =>
+    `${IMC_COLORS[cat]} ${(i * paso).toFixed(3)}%, ${IMC_COLORS[cat]} ${((i + 1) * paso).toFixed(3)}%`);
+  return {
+    pos: Math.min(100, Math.max(0, v * 100)),
+    color: getImcColor(v),
+    banda: `linear-gradient(90deg, ${tramos.join(", ")})`,
+    cero: null,
+    minLabel: "0", midLabel: "0.50", maxLabel: "1",
+  };
+}
+
 const IMC_DESC = {
   "Muy Alto": "Este territorio tiene <strong>exposición crítica</strong> a múltiples peligros climáticos simultáneos. Se recomienda planificación urgente de adaptación.",
   "Alto":     "Alta concurrencia de amenazas climáticas. Requiere <strong>medidas de adaptación</strong> en los sectores más vulnerables.",
@@ -281,37 +299,67 @@ function signo(valor, variable) {
   return variable !== "pr" && parseFloat(valor) >= 0 ? "+" : "";
 }
 
-// La barra describe el cambio, no una magnitud absoluta. En precipitación
-// el cambio tiene dos sentidos: el cero está en el centro y el trazo crece
-// hacia el lado que corresponde, de modo que su largo sea la magnitud real.
-// En temperatura, donde toda la escala es aumento, crece desde el origen.
+// La ficha no muestra una barra de llenado sino la posición del valor
+// dentro de la escala de la variable: la misma escala, en el mismo orden,
+// que la leyenda del mapa. Un cambio pequeño se lee como una marca junto
+// al centro y no como una franja de un milímetro, y el tramo donde cae la
+// marca es el color con el que el distrito está pintado.
+function escalaDe(variable) {
+  if (variable === "pr")     return { bins: PREC_BINS, colores: PREC_COLORS };
+  if (variable === "tasmax" ||
+      variable === "tasmin") return { bins: TEMP_BINS, colores: TEMP_COLORS };
+  return null;
+}
+
+// Posición en la banda: cada tramo de la leyenda ocupa la misma anchura y
+// el valor se sitúa dentro del suyo en proporción.
+function posicionEnEscala(v, bins, colores) {
+  const n = colores.length;
+  for (let i = 0; i < n; i++) {
+    if (v > bins[i] && v <= bins[i + 1]) {
+      const lo = Math.max(bins[i], bins[1] - (bins[2] - bins[1]));
+      const hi = Math.min(bins[i + 1], bins[n - 1] + (bins[2] - bins[1]));
+      const dentro = hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0.5;
+      return ((i + dentro) / n) * 100;
+    }
+  }
+  return v <= bins[1] ? 0 : 100;
+}
+
+function bandaDeEscala(colores) {
+  const paso = 100 / colores.length;
+  const tramos = colores.map((c, i) =>
+    `${c} ${(i * paso).toFixed(3)}%, ${c} ${((i + 1) * paso).toFixed(3)}%`);
+  return `linear-gradient(90deg, ${tramos.join(", ")})`;
+}
+
 function climateBarConfig(variable, valor) {
   if (valor == null) return null;
   const v = parseFloat(valor);
   if (isNaN(v)) return null;
+  const escala = escalaDe(variable);
+  if (!escala) return null;
 
-  if (variable === "pr") {
-    const tope = 100;
-    const largo = Math.min(50, (Math.abs(v) / tope) * 50);
-    return {
-      inicio: v < 0 ? 50 - largo : 50,
-      largo,
-      cero: 50,
-      color: v < 0 ? "#b85c00" : "#2a8a50",
-      minLabel: "−100%", maxLabel: "+100%", midLabel: "0%",
-    };
-  }
-  if (variable === "tasmax" || variable === "tasmin") {
-    const largo = Math.min(100, Math.max(0, (v / 4.0) * 100));
-    return {
-      inicio: 0,
-      largo,
-      cero: null,
-      color: v < 1.0 ? "#f0a020" : v < 2.0 ? "#e05010" : "#a01010",
-      minLabel: "0°C", maxLabel: "+4°C", midLabel: "+2°C",
-    };
-  }
-  return null;
+  const { bins, colores } = escala;
+  const esPrec = variable === "pr";
+  const unidad = esPrec ? "%" : "°C";
+  const fin = bins.length - 2;
+
+  return {
+    pos: posicionEnEscala(v, bins, colores),
+    color: getClimateColor(v, variable),
+    // Los tonos claros del centro de la escala no se leen como texto:
+    // la cifra usa un color propio, con el sentido del cambio.
+    colorTexto: esPrec
+      ? (v < 0 ? "#b85c00" : "#2a8a50")
+      : (v < 1.0 ? "#c47410" : v < 2.0 ? "#c04510" : "#a01010"),
+    banda: bandaDeEscala(colores),
+    // El cero solo separa dos sentidos cuando la escala los tiene
+    cero: esPrec ? (bins.indexOf(0) / colores.length) * 100 : null,
+    minLabel: `≤ ${bins[1]} ${unidad}`,
+    midLabel: esPrec ? `0 ${unidad}` : `${bins[Math.round(colores.length / 2)]} ${unidad}`,
+    maxLabel: `≥ ${bins[fin]} ${unidad}`,
+  };
 }
 
 // ─── Ortografía de los topónimos ──────────────────────────
@@ -429,17 +477,21 @@ function construirInfoHTML(props, variable, isImc, punto) {
   if (isImc) {
     const lbl = valor != null ? imcLabel(valor) : "Sin dato";
     const fmt = valor != null ? parseFloat(valor).toFixed(3) : "—";
-    const tinte  = IMC_COLORS_TEXTO[lbl] || "#888";
-    const imcPct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
+    const tinte = IMC_COLORS_TEXTO[lbl] || "#888";
     rows.push({ k: "Categoría", v: `<span style="font-weight:700;color:${tinte}">${lbl}</span>` });
     rows.push({ k: "Valor IMC", v: fmt, highlight: true });
-    barHtml = `
+    const bar = imcBarConfig(valor);
+    if (bar) {
+      barHtml = `
       <div class="info-value-bar-wrap">
-        <div class="info-value-bar-label"><span>Nivel de peligro</span><span>${fmt}</span></div>
-        <div class="info-value-bar-track">
-          <div class="info-value-bar-fill" style="left:0;width:${imcPct}%;background:${IMC_COLORS[lbl] || "#888"}"></div>
+        <div class="info-value-bar-label">
+          <span>${bar.minLabel}</span><span>${bar.midLabel}</span><span>${bar.maxLabel}</span>
+        </div>
+        <div class="escala-banda" style="background:${bar.banda}">
+          <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
         </div>
       </div>`;
+    }
     interpretHtml = `<div class="info-interpret">${IMC_DESC[lbl] || ""}</div>`;
   } else {
     const unit = variable === "pr" ? "%" : "°C";
@@ -458,9 +510,9 @@ function construirInfoHTML(props, variable, isImc, punto) {
             <span>${bar.midLabel}</span>
             <span>${bar.maxLabel}</span>
           </div>
-          <div class="info-value-bar-track">
-            ${bar.cero != null ? `<span class="info-value-bar-cero" style="left:${bar.cero}%"></span>` : ""}
-            <div class="info-value-bar-fill" style="left:${bar.inicio}%;width:${bar.largo}%;background:${bar.color}"></div>
+          <div class="escala-banda" style="background:${bar.banda}">
+            ${bar.cero != null ? `<span class="escala-cero" style="left:${bar.cero}%"></span>` : ""}
+            <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span>
           </div>
         </div>`;
     }
@@ -543,8 +595,9 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     color = IMC_COLORS_TEXTO[lbl] || "#888";
     cifra = valor != null ? parseFloat(valor).toFixed(3) : "—";
     etiqueta = `Índice Multipeligro · ${lbl}`;
-    const pct = valor != null ? Math.min(100, parseFloat(valor) * 100) : 0;
-    barra = `<div class="ic-barra"><div style="left:0;width:${pct}%;background:${IMC_COLORS[lbl] || "#888"}"></div></div>`;
+    const bar = imcBarConfig(valor);
+    if (bar) barra = `<div class="escala-banda compacta" style="background:${bar.banda}">
+      <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>`;
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
@@ -552,10 +605,10 @@ function construirInfoCompacto(props, variable, isImc, punto) {
       : "Sin dato";
     etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
     const cfg = climateBarConfig(variable, valor);
-    color = cfg ? cfg.color : "#888";
-    if (cfg) barra = `<div class="ic-barra">
-      ${cfg.cero != null ? `<span class="ic-barra-cero" style="left:${cfg.cero}%"></span>` : ""}
-      <div style="left:${cfg.inicio}%;width:${cfg.largo}%;background:${cfg.color}"></div></div>`;
+    color = cfg ? cfg.colorTexto : "#888";
+    if (cfg) barra = `<div class="escala-banda compacta" style="background:${cfg.banda}">
+      ${cfg.cero != null ? `<span class="escala-cero" style="left:${cfg.cero}%"></span>` : ""}
+      <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span></div>`;
     const interp = climateInterpret(variable, valor);
     if (interp) texto = interp.text;
   }
