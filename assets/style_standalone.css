@@ -20,6 +20,12 @@
   --sidebar-w:  280px;
   --navbar-h:   72px;
   --footer-h:   36px;
+  /* Azul marino del cromo (barra, panel y pie): un solo juego de paradas,
+     para que las tres piezas no se separen nunca de tono */
+  --cromo-1:     rgba(8,24,60,0.97);
+  --cromo-2:     rgba(11,32,76,0.96);
+  --cromo-3:     rgba(15,42,96,0.95);
+  --cromo-borde: rgba(46,96,170,0.90);
 }
 
 html, body {
@@ -73,12 +79,11 @@ html, body {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: var(--navbar-h);
-  /* Mismo azul marino que la sidebar: la barra y el panel leen como uno */
+  /* Mismo azul marino que el pie y el panel: las tres piezas leen como una */
   background: linear-gradient(90deg,
-              rgba(8,24,60,0.97) 0%,
-              rgba(11,32,76,0.97) 32%,
-              rgba(14,40,92,0.96) 65%,
-              rgba(20,56,120,0.95) 100%);
+              var(--cromo-1) 0%,
+              var(--cromo-2) 55%,
+              var(--cromo-3) 100%);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   display: flex;
@@ -87,7 +92,7 @@ html, body {
   padding: 0 24px;
   z-index: 1100;
   box-shadow: 0 2px 16px rgba(0,0,0,0.45);
-  border-bottom: 2px solid rgba(46,96,170,0.90);
+  border-bottom: 2px solid var(--cromo-borde);
   animation: fadeInDown 0.5s cubic-bezier(0.22,1,0.36,1) both, navbarGlow 6s ease-in-out 1s infinite;
   overflow: hidden;
 }
@@ -155,8 +160,8 @@ html, body {
 }
 
 .brand-a {
-  height: 0.70em;          /* altura de mayúscula de Montserrat */
-  width: 0.72em;           /* ancho equivalente al de la letra A */
+  height: 0.72em;          /* altura de mayúscula de Montserrat */
+  width: 0.76em;           /* ancho equivalente al de la letra A */
   vertical-align: baseline;
   margin: 0 0.012em;
   fill: currentColor;
@@ -165,12 +170,12 @@ html, body {
 .brand-name {
   /* Es el nombre de la plataforma: manda en la jerarquía de la barra */
   font-family: 'Montserrat', sans-serif;
-  font-size: 2.7rem;
-  font-weight: 800;
-  letter-spacing: 0.8px;
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: 2.6px;
   line-height: 0.95;
   color: var(--blanco);
-  text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
   /* Reinicio del botón: en teléfono abre el nombre completo */
   background: none;
   border: 0;
@@ -198,7 +203,7 @@ html, body {
 .navbar-title {
   color: rgba(255,255,255,0.94);
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.92rem;
+  font-size: 1.02rem;
   font-weight: 700;
   letter-spacing: 0.4px;
   line-height: 1.25;
@@ -211,9 +216,9 @@ html, body {
 }
 
 .navbar-subtitle {
-  color: rgba(255,255,255,0.62);
+  color: rgba(255,255,255,0.78);
   font-family: 'Montserrat', sans-serif;
-  font-size: 0.74rem;
+  font-size: 0.84rem;
   font-weight: 500;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -250,14 +255,12 @@ html, body {
   min-width: var(--sidebar-w);
   /* Azul marino profundo: el mapa claro ya no lava el panel */
   background: linear-gradient(180deg,
-              rgba(8,24,60,0.97) 0%,
-              rgba(11,32,76,0.97) 30%,
-              rgba(14,40,92,0.96) 58%,
-              rgba(17,48,106,0.96) 82%,
-              rgba(20,56,120,0.95) 100%);
+              var(--cromo-1) 0%,
+              var(--cromo-2) 55%,
+              var(--cromo-3) 100%);
   backdrop-filter: blur(26px) saturate(150%);
   -webkit-backdrop-filter: blur(26px) saturate(150%);
-  border-right: 3px solid rgba(46,96,170,0.90);
+  border-right: 3px solid var(--cromo-borde);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 14px 12px 20px 12px;
@@ -1775,24 +1778,25 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
   position: fixed;
   bottom: 0; left: 0; right: 0;
   height: var(--footer-h);
+  /* Mismo azul marino que la navbar y la sidebar */
   background: linear-gradient(90deg,
-              rgba(10,28,72,0.90) 0%,
-              rgba(18,50,112,0.88) 50%,
-              rgba(26,72,142,0.86) 100%);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+              var(--cromo-1) 0%,
+              var(--cromo-2) 55%,
+              var(--cromo-3) 100%);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
   z-index: 1100;
-  border-top: 2px solid #2d5494;
+  border-top: 2px solid var(--cromo-borde);
 }
 
 .footer-left,
 .footer-right {
   font-size: 0.65rem;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.72);
   letter-spacing: 0.2px;
 }
 
@@ -1802,7 +1806,7 @@ body.inmersivo .map-search-float { top: max(70px, calc(env(safe-area-inset-top) 
 .footer-scm {
   display: block;
   font-size: 0.56rem;
-  color: rgba(255,255,255,0.34);
+  color: rgba(255,255,255,0.48);
 }
 
 /* =========================================================
@@ -2057,9 +2061,9 @@ body.no-scroll { overflow: hidden; }
    ========================================================= */
 @media (max-width: 1100px) and (min-width: 769px) {
   :root { --sidebar-w: 240px; }
-  .navbar-title { font-size: 0.84rem; }
-  .brand-name { font-size: 2.3rem; }
-  .navbar-subtitle { font-size: 0.68rem; }
+  .navbar-title { font-size: 0.93rem; }
+  .brand-name { font-size: 2.5rem; }
+  .navbar-subtitle { font-size: 0.76rem; }
   .map-search-float { width: 280px; }
 }
 
