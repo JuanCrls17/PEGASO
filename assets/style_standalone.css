@@ -247,16 +247,16 @@ html, body {
 .sidebar {
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
-  /* Acabado traslúcido: el mapa se insinúa detrás del panel */
+  /* Azul marino profundo: el mapa claro ya no lava el panel */
   background: linear-gradient(180deg,
-              rgba(11,30,76,0.80) 0%,
-              rgba(16,44,102,0.76) 30%,
-              rgba(21,58,124,0.72) 58%,
-              rgba(26,72,146,0.68) 82%,
-              rgba(31,86,164,0.64) 100%);
-  backdrop-filter: blur(26px) saturate(190%);
-  -webkit-backdrop-filter: blur(26px) saturate(190%);
-  border-right: 3px solid rgba(58,116,196,0.85);
+              rgba(8,24,60,0.97) 0%,
+              rgba(11,32,76,0.97) 30%,
+              rgba(14,40,92,0.96) 58%,
+              rgba(17,48,106,0.96) 82%,
+              rgba(20,56,120,0.95) 100%);
+  backdrop-filter: blur(26px) saturate(150%);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  border-right: 3px solid rgba(46,96,170,0.90);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 14px 12px 20px 12px;
@@ -348,9 +348,9 @@ html, body {
 }
 
 .radio-card.active {
-  background: linear-gradient(135deg, rgba(58,110,168,0.35) 0%, rgba(94,143,204,0.25) 100%);
-  border-color: #4a7ec0;
-  box-shadow: 0 0 0 1px rgba(74,126,192,0.3);
+  background: linear-gradient(135deg, rgba(41,94,168,0.62) 0%, rgba(64,124,204,0.44) 100%);
+  border-color: #5590d8;
+  box-shadow: 0 0 0 1px rgba(85,144,216,0.38);
 }
 
 .radio-dot {
