@@ -1,0 +1,42 @@
+{
+ "geometria": "data/distritos.geojson",
+ "n": 1891,
+ "periodo": "2036-2065",
+ "referencia": "1981-2010",
+ "escenarios": {
+  "ssp245": {
+   "etiqueta": "SSP2-4.5",
+   "nombre": "Escenario moderado",
+   "variables": [
+    "pr",
+    "tasmax",
+    "tasmed",
+    "tasmin"
+   ],
+   "indices": [
+    "tnn",
+    "tnx",
+    "txn",
+    "txx"
+   ],
+   "significancia": true
+  },
+  "ssp585": {
+   "etiqueta": "SSP5-8.5",
+   "nombre": "Escenario severo",
+   "variables": [
+    "pr",
+    "tasmax",
+    "tasmin"
+   ],
+   "indices": [
+    "tnn",
+    "tnx",
+    "txn",
+    "txx"
+   ],
+   "significancia": false
+  }
+ },
+ "tope_precipitacion": 100.0
+}

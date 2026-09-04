@@ -4,6 +4,9 @@
 # Las mallas NetCDF de origen son 84 MB y el sitio no las sirve: de ellas
 # sale data/indices/, que pesa 256 KB. Se quedan fuera del repo.
 INDICES_EXTREMOS_CLIMATICOS/
+INDICES_EXTREMOS_CLIMATICOS85/
+INDICES_EXTREMOS_CLIMATICOS245/
+cambios/
 *.nc
 
 # ── Python ──

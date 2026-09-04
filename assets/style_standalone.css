@@ -2395,3 +2395,351 @@ body.no-scroll { overflow: hidden; }
     transition-duration: 0.06s !important;
   }
 }
+
+/* =========================================================
+   ESCENARIOS DE EMISIONES
+   Dos trayectorias y su brecha. Vive en la sidebar, sobre el
+   azul marino del cromo, y comparte el lenguaje de las demás
+   secciones: tarjeta apagada = opción que existe pero no aquí.
+   ========================================================= */
+.escenario-capsulas {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 3px;
+  border-radius: 8px;
+}
+
+/* Riel de fondo: agrupa las dos cápsulas en una sola pieza */
+.capsula-fondo {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  pointer-events: none;
+}
+
+.capsula {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: rgba(255,255,255,0.72);
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.24s cubic-bezier(0.22,1,0.36,1);
+}
+
+.capsula-cod {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  line-height: 1.15;
+}
+
+.capsula-nombre {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: rgba(255,255,255,0.42);
+  transition: color 0.24s ease;
+}
+
+.capsula:hover {
+  background: rgba(255,255,255,0.10);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.capsula.active {
+  background: linear-gradient(135deg, #3a6ea8 0%, #4a7ec0 50%, #5e8fcc 100%);
+  border-color: #4a7ec0;
+  color: var(--blanco);
+  box-shadow: 0 2px 9px rgba(74,126,192,0.45);
+}
+
+.capsula.active .capsula-nombre { color: rgba(255,255,255,0.82); }
+
+/* Con la comparación encendida ninguna cápsula manda: las dos quedan
+   a la espera, y el acento se traslada al botón de abajo. */
+.escenario-capsulas.comparando .capsula {
+  opacity: 0.62;
+}
+
+/* ── Botón de comparación ── */
+.btn-comparar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.84);
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.22,1,0.36,1);
+}
+
+.btn-comparar svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.btn-comparar:hover:not(.blocked) {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.38);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-comparar:hover svg { opacity: 0.95; }
+
+/* El púrpura de la comparación es el mismo de la escala de brecha: al
+   encenderlo, el color del control anticipa el color del mapa. */
+.btn-comparar.active {
+  background: linear-gradient(135deg, #6a1fa6 0%, #8f52c2 55%, #a874d8 100%);
+  border-color: #a874d8;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(143,82,194,0.45);
+}
+
+.btn-comparar.active svg { opacity: 1; }
+
+.btn-comparar.blocked {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+.escenario-aviso {
+  margin-top: 7px;
+  font-size: 0.64rem;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.5);
+  font-style: italic;
+}
+
+.escenario-nota {
+  margin-top: 7px;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.34);
+}
+
+/* Variable que el escenario en curso no tiene: se apaga, no se esconde */
+.radio-card.no-disponible {
+  opacity: 0.34;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.55);
+}
+
+/* La media comparte el frasco del termómetro con la máxima y la mínima */
+.radio-card.active .icon-tasmed { background: rgba(255,255,255,0.15); }
+
+/* =========================================================
+   EL DISTRITO CONSULTADO SE LEVANTA
+   Todo el plano de datos se hunde y solo el territorio elegido
+   queda arriba, con su sombra. Son dos clases en el DOM, no
+   1891 cambios de estilo.
+   ========================================================= */
+.leaflet-datos-pane path {
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22,1,0.36,1);
+}
+
+.leaflet-datos-pane.enfocado path { opacity: 0.42; }
+
+.leaflet-datos-pane.enfocado path.distrito-elevado {
+  opacity: 1;
+  transform: translateY(-2.5px);
+  filter: drop-shadow(0 5px 9px rgba(8,20,45,0.5));
+}
+
+/* =========================================================
+   LA FICHA SALE DEL MAPA
+   Entrada corta, con un rebote mínimo: el gesto dice «esto se
+   levantó de ahí», no «apareció un cuadro».
+   ========================================================= */
+@keyframes peekIn {
+  0%   { opacity: 0; transform: scale(0.9) translateY(8px); }
+  62%  { opacity: 1; transform: scale(1.018) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.info-popup.peek .leaflet-popup-content-wrapper,
+.map-info-panel.peek {
+  animation: peekIn 0.34s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+.info-popup.comparando .leaflet-popup-content-wrapper,
+.map-info-panel.comparando {
+  box-shadow: 0 14px 38px rgba(53,20,90,0.30), 0 3px 10px rgba(10,25,55,0.22);
+}
+
+/* =========================================================
+   FICHA COMPARADA
+   Las dos lecturas enfrentadas sobre la misma banda de color:
+   la distancia entre las dos marcas es la brecha, ya dibujada.
+   ========================================================= */
+.cmp {
+  margin-top: 10px;
+}
+
+.cmp-brecha {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 9px 10px 10px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #f6f1fc 0%, #efe7f8 100%);
+  border: 1px solid rgba(143,82,194,0.24);
+}
+
+.cmp-brecha-rotulo {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #7d5aa0;
+}
+
+.cmp-brecha-cifra {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp-brecha-txt {
+  font-size: 0.65rem;
+  color: #6b5a80;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.cmp-fila {
+  margin-top: 9px;
+  padding: 7px 9px 8px;
+  border-radius: 6px;
+  background: #f4f7fc;
+  border-left: 3px solid #4a7ec0;
+}
+
+.cmp-fila.severa {
+  background: #fdf4f3;
+  border-left-color: #b34a3a;
+}
+
+.cmp-fila-cab {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.cmp-tag {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #22314e;
+  letter-spacing: 0.2px;
+}
+
+.cmp-nombre {
+  flex: 1;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #8a94a6;
+}
+
+.cmp-cifra {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cmp .escala-banda.compacta { margin: 7px 0 1px; }
+
+.cmp .info-contexto { margin-top: 9px; }
+
+/* Avisos sobre el dato mismo: no interpretan el número, advierten de
+   qué no se puede leer en él. */
+.info-cautela {
+  margin-top: 7px;
+  font-size: 0.68rem;
+  line-height: 1.42;
+  color: #7a5a1a;
+  padding: 6px 8px;
+  background: #fdf6e7;
+  border-left: 3px solid #d9a441;
+  border-radius: 0 4px 4px 0;
+}
+
+.info-cautela strong { color: #8a5a00; }
+
+/* Escenario al que pertenece lo pintado, en la leyenda */
+.legend-escenario {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #2d5494;
+  margin-bottom: 5px;
+}
+
+.legend-escenario.comparando { color: #7d3aa8; }
+
+@media (max-width: 768px) {
+  .capsula { padding: 8px 9px; min-height: 44px; }
+  .btn-comparar { min-height: 42px; }
+  .cmp-brecha-cifra { font-size: 1.3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-popup.peek .leaflet-popup-content-wrapper,
+  .map-info-panel.peek { animation: none; }
+  .leaflet-datos-pane path { transition: none; }
+  .leaflet-datos-pane.enfocado path.distrito-elevado { transform: none; }
+  .capsula:hover, .btn-comparar:hover:not(.blocked) { transform: none; }
+}
+
+/* Con la comparación encendida, el mapa también cambia de acento: el pulso
+   y el trazo de la selección toman el púrpura de la escala de brecha, para
+   que el modo se reconozca sin mirar el panel. */
+body.modo-comparar .pulso-seleccion span {
+  border-color: #8f52c2;
+  box-shadow: 0 0 12px rgba(143,82,194,0.5);
+}
+
+body.modo-comparar .map-legend .legend-title {
+  color: #6a1fa6;
+  border-bottom-color: #a874d8;
+}
+
+body.modo-comparar .map-legend .legend-ref-note {
+  border-left-color: #a874d8;
+}

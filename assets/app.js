@@ -19,9 +19,61 @@ const TEMP_COLORS = [
 ];
 
 const NOMBRE_VARIABLE = {
-  pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima", imc: "Índice Multipeligro",
+  pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima", tasmed: "T° Media",
+  imc: "Índice Multipeligro",
   txx: "Día más cálido", txn: "Día más fresco",
   tnx: "Noche más cálida", tnn: "Noche más fría",
+};
+
+// ─── Escenarios de emisiones ──────────────────────────────
+// Dos trayectorias del CMIP6 sobre la misma malla y el mismo período: se
+// eligen por separado y se pueden enfrentar. El severo es el que la
+// plataforma publicaba hasta ahora, y sigue siendo el que abre.
+const ESCENARIOS = {
+  ssp245: {
+    etiqueta: "SSP2-4.5", nombre: "Moderado",
+    resumen: "Las emisiones se estabilizan hacia mitad de siglo",
+  },
+  ssp585: {
+    etiqueta: "SSP5-8.5", nombre: "Severo",
+    resumen: "Las emisiones siguen creciendo sin freno",
+  },
+};
+
+// La temperatura media solo llegó en el escenario moderado: no hay malla
+// equivalente en el severo, así que la tarjeta se apaga al cambiar.
+const SOLO_EN_ESCENARIO = { tasmed: "ssp245" };
+
+function escenarioTiene(escenario, clave) {
+  const unico = SOLO_EN_ESCENARIO[clave];
+  return !unico || unico === escenario;
+}
+
+// ─── Escala de la brecha entre escenarios ─────────────────
+// Al comparar, el mapa no pinta un escenario sino la distancia entre los
+// dos: cuánto añade el severo sobre el moderado. Es otra magnitud y lleva
+// otra escala —divergente y de tonos ajenos a las dos rampas de arriba—,
+// para que nadie confunda una brecha de 0,5 °C con un cambio de 0,5 °C.
+// Los tramos están cortados sobre el reparto real de la brecha, no sobre
+// números redondos: casi toda la temperatura se separa entre 0,3 y 0,8 °C,
+// y una escala de pasos de 0,2 dejaba dos tercios del país de un solo color.
+// El cero no cae al centro porque el dato no es simétrico: que el escenario
+// moderado caliente más que el severo pasa en el 1 % del territorio, y
+// merece un tono aparte, no la mitad de la escala.
+// Los pasos están medidos en OKLCH para que dos tramos vecinos se
+// distingan siempre —ninguna pareja baja de ΔE 8—, y el salto de signo se
+// marca con un cambio de familia de color, no con un tono más claro.
+const BRECHA_ESCALAS = {
+  temp: {
+    bins: [-999, -0.2, 0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 999],
+    colores: ["#006457", "#7fb8ac", "#ebd4f6", "#d3b3e2", "#bc92ce",
+              "#a472ba", "#8d51a6", "#762f92", "#5f007d"],
+  },
+  prec: {
+    bins: [-999, -40, -20, -10, 0, 10, 20, 40, 999],
+    colores: ["#005e4f", "#34897a", "#76b5a8", "#b3e3d9",
+              "#e6cdf2", "#ba90cc", "#8e55a6", "#630e80"],
+  },
 };
 
 // ─── Índices extremos de temperatura (ETCCDI) ─────────────
@@ -92,12 +144,14 @@ const IMC_DESC = {
 
 // ─── Estado de la aplicación ──────────────────────────────
 const state = {
-  variable:  "pr",     // "pr" | "tasmax" | "tasmin" | "imc"
+  variable:  "pr",     // "pr" | "tasmax" | "tasmin" | "tasmed" | "imc"
   estacion:  "anual",
   imcActive: false,
   imcTipo:   "agricola",
   indice:    null,     // clave del índice extremo en uso, o null
   refLayer:  "departamentos",
+  escenario: "ssp585", // trayectoria de emisiones en pantalla
+  comparar:  false,    // el mapa pinta la brecha entre los dos escenarios
 };
 
 // ─── Capas Leaflet activas ────────────────────────────────
@@ -125,6 +179,15 @@ const map = L.map("map", {
   zoomDelta: 0.5,
   bounceAtZoomLimits: false,
 });
+
+// Los datos y las fronteras viven en planos separados: así el velo que
+// hunde el mapa al consultar un distrito no arrastra también los límites
+// departamentales, y las fronteras no necesitan bringToFront en cada carga.
+map.createPane("datos");
+map.getPane("datos").style.zIndex = 400;
+map.createPane("referencia");
+map.getPane("referencia").style.zIndex = 450;
+map.getPane("referencia").style.pointerEvents = "none";
 
 const baseOSM = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 14,
@@ -227,6 +290,21 @@ function getClimateColor(value, variable) {
   return "#cccccc";
 }
 
+function escalaDeBrecha(variable) {
+  return variable === "pr" ? BRECHA_ESCALAS.prec : BRECHA_ESCALAS.temp;
+}
+
+function getBrechaColor(value, variable) {
+  if (value == null) return "#cccccc";
+  const v = parseFloat(value);
+  if (isNaN(v)) return "#cccccc";
+  const { bins, colores } = escalaDeBrecha(variable);
+  for (let i = 0; i < bins.length - 1; i++) {
+    if (v > bins[i] && v <= bins[i + 1]) return colores[i];
+  }
+  return "#cccccc";
+}
+
 function getImcColor(value) {
   if (value == null) return "#cccccc";
   const v = parseFloat(value);
@@ -246,19 +324,17 @@ function imcLabel(value) {
   return "Bajo";
 }
 
-// ─── Nombre de archivo GeoJSON ────────────────────────────
-function climateFilename(variable, estacion) {
+// ─── Rutas de los datos ───────────────────────────────────
+// Todo lo que pinta el mapa vive en data/valores/: un archivo por
+// escenario, variable y corte, con los 1891 valores en el mismo orden que
+// data/distritos.geojson. Ver tools/generar_valores.py.
+function valoresFilename(escenario, clave, estacion) {
   const est = estacion === "anual" ? "anual" : estacion.toUpperCase();
-  return `data/distritos_cambio_${variable}_${est}_cmip6_2036_2065_5km.geojson`;
+  return `data/valores/${escenario}/${clave}_${est}.json`;
 }
 
 function imcFilename(tipo) {
-  return `data/indice_multipeligro_${tipo}_2036_2065.geojson`;
-}
-
-function indiceFilename(indice, estacion) {
-  const est = estacion === "anual" ? "anual" : estacion.toUpperCase();
-  return `data/indices/${indice}_${est}.json`;
+  return `data/valores/imc_${tipo}.json`;
 }
 
 function refFilename(layer) {
@@ -287,22 +363,82 @@ function cargarGeometriaDistritos() {
   return geometriaDistritos;
 }
 
-async function distritosConValores(indice, estacion) {
-  const archivo = indiceFilename(indice, estacion);
-  const [geo, datos] = await Promise.all([cargarGeometriaDistritos(), fetchGeoJSON(archivo)]);
+// Los archivos de valores pesan 15 KB y se piden una y otra vez al alternar
+// entre escenarios: se guarda la promesa de cada uno, de modo que volver a
+// un escenario ya visto no cuesta ninguna descarga.
+const cacheValores = new Map();
+
+function cargarValores(ruta) {
+  if (!cacheValores.has(ruta)) {
+    cacheValores.set(ruta, fetchGeoJSON(ruta)
+      .catch(err => { cacheValores.delete(ruta); throw err; }));
+  }
+  return cacheValores.get(ruta);
+}
+
+function comprobarLargo(datos, geo, ruta) {
   const valores = datos && datos.valores;
   // Los valores se emparejan por posición, no por nombre: hay 99 nombres de
   // distrito repetidos en el país y emparejar por nombre los mezclaría.
   if (!Array.isArray(valores) || valores.length !== geo.features.length) {
-    throw new Error(`${archivo} no cuadra con la capa de distritos`);
+    throw new Error(`${ruta} no cuadra con la capa de distritos`);
   }
+  return datos;
+}
+
+// Un escenario: el valor pintado es el cambio proyectado.
+async function distritosConValores(clave, estacion, escenario) {
+  const ruta = valoresFilename(escenario, clave, estacion);
+  const [geo, datos] = await Promise.all([cargarGeometriaDistritos(), cargarValores(ruta)]);
+  comprobarLargo(datos, geo, ruta);
+  const sig = Array.isArray(datos.sig) ? datos.sig : null;
+  const topados = new Set(datos.topados || []);
   return {
     type: "FeatureCollection",
     features: geo.features.map((f, i) => ({
       type: "Feature",
       geometry: f.geometry,
-      properties: { DISTRITO: f.properties.DISTRITO, valor: valores[i] },
+      properties: {
+        DISTRITO: f.properties.DISTRITO,
+        valor: datos.valores[i],
+        sig: sig ? sig[i] : null,
+        topado: topados.has(i),
+      },
     })),
+  };
+}
+
+// Los dos escenarios a la vez: el valor pintado es la brecha —cuánto añade
+// el severo sobre el moderado— y cada distrito conserva las dos lecturas
+// para que la ficha las enfrente sin volver a pedir nada.
+async function distritosComparados(clave, estacion) {
+  const rutaMod = valoresFilename("ssp245", clave, estacion);
+  const rutaSev = valoresFilename("ssp585", clave, estacion);
+  const [geo, mod, sev] = await Promise.all([
+    cargarGeometriaDistritos(), cargarValores(rutaMod), cargarValores(rutaSev),
+  ]);
+  comprobarLargo(mod, geo, rutaMod);
+  comprobarLargo(sev, geo, rutaSev);
+  const sig = Array.isArray(mod.sig) ? mod.sig : null;
+  const topados = new Set([...(mod.topados || []), ...(sev.topados || [])]);
+  return {
+    type: "FeatureCollection",
+    features: geo.features.map((f, i) => {
+      const a = mod.valores[i], b = sev.valores[i];
+      const brecha = (a == null || b == null) ? null : b - a;
+      return {
+        type: "Feature",
+        geometry: f.geometry,
+        properties: {
+          DISTRITO: f.properties.DISTRITO,
+          valor: brecha,
+          ssp245: a,
+          ssp585: b,
+          sig: sig ? sig[i] : null,
+          topado: topados.has(i),
+        },
+      };
+    }),
   };
 }
 
@@ -322,6 +458,11 @@ const VAR_INFO = {
     title: "Temperatura Mínima",
     desc: "Cambio proyectado en la temperatura mínima diaria (°C). Afecta principalmente las heladas, la biodiversidad altoandina y los ciclos agrícolas.",
     sectores: ["Agricultura", "Ganadería", "Biodiversidad", "Energía"],
+  },
+  tasmed: {
+    title: "Temperatura Media",
+    desc: "Cambio proyectado en la temperatura media diaria (°C). Es la lectura de fondo del calentamiento, la que resume el desplazamiento de todo el ciclo diario. <strong>Solo está disponible para el escenario SSP2-4.5</strong>: no se cuenta con la malla equivalente del SSP5-8.5.",
+    sectores: ["Planificación territorial", "Agricultura", "Salud", "Energía"],
   },
   indices: {
     title: "Índices extremos de temperatura",
@@ -361,8 +502,10 @@ function climateInterpret(variable, valor) {
     return { text: `${extremo.quien} será ${cuanto} ${sentido} que en 1981–2010. ${extremo.lectura}` };
   }
 
-  if (variable === "tasmax" || variable === "tasmin") {
-    const lbl = variable === "tasmax" ? "días más cálidos" : "noches más frías";
+  if (variable === "tasmax" || variable === "tasmin" || variable === "tasmed") {
+    const lbl = variable === "tasmax" ? "días más cálidos"
+              : variable === "tasmin" ? "noches más frías"
+              : "la temperatura media";
     if (v < 0.5)  return { text: `Calentamiento leve (+${v.toFixed(1)}°C en ${lbl}). Cambio dentro de variabilidad natural.` };
     if (v < 1.0)  return { text: `Calentamiento <strong>moderado</strong> (+${v.toFixed(1)}°C en ${lbl}). Impactos perceptibles en agricultura y salud.` };
     if (v < 1.5)  return { text: `Calentamiento <strong>alto</strong> (+${v.toFixed(1)}°C en ${lbl}). Estrés hídrico y térmico significativo.` };
@@ -377,6 +520,56 @@ function climateInterpret(variable, valor) {
 // lectura relevante; el negativo ya lo pone el propio número.
 function signo(valor, variable) {
   return variable !== "pr" && parseFloat(valor) >= 0 ? "+" : "";
+}
+
+// ─── Escenarios en la ficha ───────────────────────────────
+function unidadDe(clave) {
+  return clave === "pr" ? "%" : "°C";
+}
+
+function cifraDe(valor, clave) {
+  if (valor == null) return "Sin dato";
+  const v = parseFloat(valor);
+  if (isNaN(v)) return "Sin dato";
+  return `${signo(v, clave)}${v.toFixed(1)} ${unidadDe(clave)}`;
+}
+
+// La brecha lleva siempre su signo: es una distancia con sentido, no una
+// magnitud suelta. Positiva significa que el escenario severo va más lejos.
+function cifraBrecha(valor, clave) {
+  if (valor == null) return "—";
+  const v = parseFloat(valor);
+  if (isNaN(v)) return "—";
+  const n = clave === "pr" ? v.toFixed(1) : v.toFixed(2);
+  return `${v >= 0 ? "+" : ""}${n} ${unidadDe(clave)}`;
+}
+
+// Nota sobre la significancia: solo existe en el escenario moderado, y solo
+// cambia la lectura donde la señal es débil, que en la práctica es la lluvia.
+// Callarla en el mapa de precipitación sugiere una certeza que el modelo no da.
+function notaSignificancia(props, clave) {
+  const sig = props ? props.sig : null;
+  if (sig == null || clave !== "pr") return "";
+  if (sig >= 0.5) return "";
+  const parte = sig <= 0.05 ? "en prácticamente todo el distrito"
+              : sig < 0.25  ? "en la mayor parte del distrito"
+              : "en más de la mitad del distrito";
+  // La máscara solo llegó con el escenario moderado: al comparar hay que
+  // decir de cuál de los dos se está hablando.
+  const cual = comparaAhora() ? "en el SSP2-4.5 " : "";
+  return `<div class="info-cautela">El cambio de lluvia ${cual}<strong>no es
+          estadísticamente significativo</strong> ${parte} (p ≥ 0,05):
+          los modelos no coinciden en el sentido de la señal.</div>`;
+}
+
+// Nota sobre el tope: en la costa desértica casi no llueve en invierno y el
+// cambio relativo se dispara. Un +100 % recortado y un +100 % real se ven
+// igual en el mapa; aquí se distinguen.
+function notaTope(props, clave) {
+  if (!props || !props.topado || clave !== "pr") return "";
+  return `<div class="info-cautela">Valor <strong>recortado al tope de
+          ±100 %</strong>. Aquí la lluvia de referencia es casi nula y el
+          cambio relativo se dispara sin que ello signifique mucha agua.</div>`;
 }
 
 // ─── Contexto regional ────────────────────────────────────
@@ -537,6 +730,27 @@ function contextoRegional(valor, variable, isImc, punto) {
          `${cuantos} de sus ${total} distritos ${verbo}.`;
 }
 
+// Al comparar, lo que se sitúa en la región no es el cambio sino la
+// distancia entre escenarios: dónde se separan más las dos trayectorias.
+function contextoBrecha(valor, punto) {
+  if (valor == null || !punto) return "";
+  const grupo = datosRegionales(punto);
+  if (!grupo) return "";
+  const donde = nombreDeUnidad(grupo.props);
+  if (!donde.nombre) return "";
+
+  const total = grupo.valores.length;
+  if (total === 1) return "";
+  const { delante } = posicionEnGrupo(parseFloat(valor), grupo.valores, true);
+  const nombre = escaparHTML(donde.nombre);
+  const cuantos = delante === 0 ? "Ningún distrito"
+                : delante === 1 ? "Solo un distrito"
+                : `${delante} de los ${total} distritos`;
+  const verbo = delante === 1 ? "separa" : "separan";
+  return `<div class="info-contexto">${cuantos} ${donde.articulo}
+          ${nombre} ${verbo} más los dos escenarios que este.</div>`;
+}
+
 function lineaContexto(valor, variable, isImc, punto) {
   const txt = contextoRegional(valor, variable, isImc, punto);
   return txt ? `<div class="info-contexto">${txt}</div>` : "";
@@ -549,7 +763,8 @@ function lineaContexto(valor, variable, isImc, punto) {
 // marca es el color con el que el distrito está pintado.
 function escalaDe(variable) {
   if (variable === "pr")     return { bins: PREC_BINS, colores: PREC_COLORS };
-  if (variable === "tasmax" || variable === "tasmin" || INDICES_EXTREMOS[variable])
+  if (variable === "tasmax" || variable === "tasmin" || variable === "tasmed"
+      || INDICES_EXTREMOS[variable])
     return { bins: TEMP_BINS, colores: TEMP_COLORS };
   return null;
 }
@@ -699,6 +914,54 @@ function describirReferencia(props) {
   return null;
 }
 
+// Las dos lecturas enfrentadas, cada una sobre la misma escala de color que
+// usa el mapa. Enfrentarlas en una tabla de dos números no dice nada: puestas
+// sobre la banda se ve de un vistazo cuánto se mueve el distrito al pasar de
+// una trayectoria a la otra.
+function filaEscenario(escenario, valor, clave, destacada) {
+  const cfg = climateBarConfig(clave, valor);
+  const meta = ESCENARIOS[escenario];
+  return `
+    <div class="cmp-fila${destacada ? " severa" : ""}">
+      <div class="cmp-fila-cab">
+        <span class="cmp-tag">${meta.etiqueta}</span>
+        <span class="cmp-nombre">${meta.nombre}</span>
+        <span class="cmp-cifra" style="color:${cfg ? cfg.colorTexto : "#555"}">
+          ${cifraDe(valor, clave)}
+        </span>
+      </div>
+      ${cfg ? `<div class="escala-banda compacta" style="background:${cfg.banda}">
+        ${cfg.cero != null ? `<span class="escala-cero" style="left:${cfg.cero}%"></span>` : ""}
+        <span class="escala-marca" style="left:${cfg.pos}%;background:${cfg.color}"></span>
+      </div>` : ""}
+    </div>`;
+}
+
+function bloqueComparado(props, clave, punto) {
+  const a = props.ssp245, b = props.ssp585;
+  const brecha = props.valor;
+  const positiva = brecha != null && parseFloat(brecha) >= 0;
+  const leyenda = brecha == null ? "sin dato en uno de los escenarios"
+                : clave === "pr"
+                  ? (positiva ? "más lluvia en el escenario severo"
+                              : "menos lluvia en el escenario severo")
+                  : (positiva ? "más de calentamiento en el escenario severo"
+                              : "menos de calentamiento en el escenario severo");
+  return `
+    <div class="cmp">
+      <div class="cmp-brecha">
+        <span class="cmp-brecha-rotulo">Brecha entre escenarios</span>
+        <span class="cmp-brecha-cifra" style="color:${getBrechaColor(brecha, clave)}">
+          ${cifraBrecha(brecha, clave)}
+        </span>
+        <span class="cmp-brecha-txt">${leyenda}</span>
+      </div>
+      ${filaEscenario("ssp245", a, clave, false)}
+      ${filaEscenario("ssp585", b, clave, true)}
+      ${contextoBrecha(brecha, punto)}
+    </div>`;
+}
+
 function construirInfoHTML(props, variable, isImc, punto) {
   const distrito = conTildes(props.DISTRITO || props.NOMBRE) || "—";
   const valor    = props.valor != null ? props.valor : null;
@@ -736,6 +999,15 @@ function construirInfoHTML(props, variable, isImc, punto) {
       </div>`;
     }
     interpretHtml = `<div class="info-interpret">${IMC_DESC[lbl] || ""}</div>`;
+  } else if (comparaAhora()) {
+    const extremo = INDICES_EXTREMOS[variable];
+    rows.push(extremo
+      ? { k: "Índice",   v: `${NOMBRE_VARIABLE[variable]} (${extremo.codigo})` }
+      : { k: "Variable", v: NOMBRE_VARIABLE[variable] || variable });
+    rows.push({ k: "Estación", v: seasonLabel(state.estacion) });
+    rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
+    barHtml = bloqueComparado(props, variable, punto);
+    interpretHtml = notaTope(props, variable) + notaSignificancia(props, variable);
   } else {
     const unit = variable === "pr" ? "%" : "°C";
     const fmt  = valor != null ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unit}` : "Sin dato";
@@ -743,6 +1015,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
     rows.push(extremo
       ? { k: "Índice",   v: `${NOMBRE_VARIABLE[variable]} (${extremo.codigo})` }
       : { k: "Variable", v: NOMBRE_VARIABLE[variable] || variable });
+    rows.push({ k: "Escenario", v: `${ESCENARIOS[state.escenario].etiqueta} · ${ESCENARIOS[state.escenario].nombre}` });
     rows.push({ k: "Estación", v: seasonLabel(state.estacion) });
     rows.push({ k: "Período",  v: "2036–2065 vs 1981–2010" });
     rows.push({ k: "Cambio",   v: fmt, highlight: true });
@@ -765,6 +1038,7 @@ function construirInfoHTML(props, variable, isImc, punto) {
     }
     const interp = climateInterpret(variable, valor);
     if (interp) interpretHtml = `<div class="info-interpret">${interp.text}</div>`;
+    interpretHtml = notaTope(props, variable) + notaSignificancia(props, variable) + interpretHtml;
   }
 
   return rows.map(r =>
@@ -880,12 +1154,17 @@ function construirInfoCompacto(props, variable, isImc, punto) {
     const bar = imcBarConfig(valor);
     if (bar) barra = `<div class="escala-banda compacta" style="background:${bar.banda}">
       <span class="escala-marca" style="left:${bar.pos}%;background:${bar.color}"></span></div>`;
+  } else if (comparaAhora()) {
+    cifra = cifraBrecha(valor, variable);
+    color = getBrechaColor(valor, variable);
+    etiqueta = `Brecha entre escenarios · ${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
+    barra = bloqueComparado(props, variable, punto);
   } else {
     const unidad = variable === "pr" ? "%" : "°C";
     cifra = valor != null
       ? `${signo(valor, variable)}${parseFloat(valor).toFixed(1)} ${unidad}`
       : "Sin dato";
-    etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${seasonLabel(state.estacion)}`;
+    etiqueta = `${NOMBRE_VARIABLE[variable] || variable} · ${ESCENARIOS[state.escenario].etiqueta} · ${seasonLabel(state.estacion)}`;
     const cfg = climateBarConfig(variable, valor);
     color = cfg ? cfg.colorTexto : "#888";
     if (cfg) barra = `<div class="escala-banda compacta" style="background:${cfg.banda}">
@@ -897,7 +1176,10 @@ function construirInfoCompacto(props, variable, isImc, punto) {
 
   const ubica = ref ? `${ref.etiqueta}: ${ref.valor}` : "";
 
-  const contexto = lineaContexto(valor, variable, isImc, punto);
+  const contexto = comparaAhora() && !isImc
+    ? notaTope(props, variable) + notaSignificancia(props, variable)
+    : lineaContexto(valor, variable, isImc, punto)
+      + (isImc ? "" : notaTope(props, variable) + notaSignificancia(props, variable));
 
   return `<button class="ic-manija" id="icManija" aria-label="Extender la ficha"></button>
           <div class="ic-cabecera">
@@ -1007,10 +1289,31 @@ function resaltarUnidad(layer) {
   selectedFeature = layer;
   layer.setStyle({ weight: 2.5, color: "#1e5bb5", fillOpacity: 0.97, dashArray: null });
   layer.bringToFront();
-  if (refGeoLayer) refGeoLayer.bringToFront();
+  elevarDistrito(layer);
+}
+
+// El distrito consultado se levanta y el resto del mapa se hunde: la
+// atención va a un territorio, no a la mancha entera. Es una clase sobre el
+// plano de datos y otra sobre el trazo elegido —dos escrituras en el DOM—,
+// no 1891 cambios de estilo uno por uno.
+function elevarDistrito(layer) {
+  const plano = map.getPane("datos");
+  document.querySelectorAll(".distrito-elevado")
+    .forEach(el => el.classList.remove("distrito-elevado"));
+  if (!layer || !layer._path) { if (plano) plano.classList.remove("enfocado"); return; }
+  if (plano) plano.classList.add("enfocado");
+  layer._path.classList.add("distrito-elevado");
+}
+
+function bajarDistritos() {
+  const plano = map.getPane("datos");
+  if (plano) plano.classList.remove("enfocado");
+  document.querySelectorAll(".distrito-elevado")
+    .forEach(el => el.classList.remove("distrito-elevado"));
 }
 
 function limpiarSeleccion() {
+  bajarDistritos();
   if (!selectedFeature) return;
   const capa = capaActiva();
   if (capa) capa.resetStyle(selectedFeature);
@@ -1018,6 +1321,7 @@ function limpiarSeleccion() {
 }
 
 function ocultarInfo() {
+  bajarDistritos();
   marcarSeleccion(null);
   document.getElementById("infoPanel").style.display = "none";
   const abierto = infoPopup;
@@ -1068,7 +1372,7 @@ function mostrarInfo(props) {
     infoPopup = null;
     if (abierto) map.closePopup(abierto);
     infoPopup = L.popup({
-      className: "info-popup",
+      className: comparaAhora() ? "info-popup peek comparando" : "info-popup peek",
       maxWidth: 340,
       minWidth: 270,
       autoPan: true,
@@ -1096,6 +1400,12 @@ function mostrarInfo(props) {
   const panel = document.getElementById("infoPanel");
   panel.classList.remove("extendida");
   panel.classList.toggle("compacto", enTelefono);
+  panel.classList.toggle("comparando", comparaAhora());
+  // Reiniciar la animación: sin quitar la clase y forzar un reflujo, la
+  // segunda consulta seguida aparecería sin el gesto de entrada.
+  panel.classList.remove("peek");
+  void panel.offsetWidth;
+  panel.classList.add("peek");
   document.getElementById("infoPanelBody").innerHTML =
     enTelefono ? construirInfoCompacto(props, state.variable, isImc, punto) : html;
 
@@ -1158,11 +1468,37 @@ function buildClimateLegend(variable) {
   }).join("");
 
   const extremo = INDICES_EXTREMOS[variable];
+  const esc = ESCENARIOS[state.escenario];
   const nota = extremo ? `${extremo.codigo} · Cambio respecto a 1981–2010`
                        : "Cambio respecto a 1981–2010";
   el.innerHTML = `
     <div class="legend-title">${title}</div>
+    <div class="legend-escenario">${esc.etiqueta} · ${esc.nombre}</div>
     <div class="legend-ref-note">${nota}</div>
+    ${items}`;
+}
+
+// La leyenda de la comparación no describe un escenario sino la distancia
+// entre los dos, así que lleva su propia escala y lo dice en el título.
+function buildBrechaLegend(clave) {
+  const el = document.getElementById("legendContent");
+  document.getElementById("mapLegend").classList.remove("empty");
+  const { bins, colores } = escalaDeBrecha(clave);
+  const unit = unidadDe(clave);
+
+  const items = colores.map((c, i) => {
+    const lo = bins[i], hi = bins[i + 1];
+    const label = lo <= -900 ? `≤ ${hi}` : hi >= 900 ? `≥ ${lo}` : `${lo} a ${hi}`;
+    return `<div class="legend-item">
+      <span class="legend-swatch" style="background:${c}"></span>
+      <span class="legend-label">${label} ${unit}</span>
+    </div>`;
+  }).join("");
+
+  el.innerHTML = `
+    <div class="legend-title">Brecha · ${NOMBRE_VARIABLE[clave] || clave}</div>
+    <div class="legend-escenario comparando">SSP5-8.5 menos SSP2-4.5</div>
+    <div class="legend-ref-note">Cuánto añade el escenario severo sobre el moderado</div>
     ${items}`;
 }
 
@@ -1193,8 +1529,9 @@ function buildImcLegend() {
 // ─── Cargar/refrescar la capa de datos ────────────────────
 // Una sola vía para la capa climática y la del índice: se diferencian en
 // el archivo, el color y el trazo, no en el procedimiento.
-const ESTILO_CLIMA = { color: "#555",    weight: 0.3, fillOpacity: 0.85 };
-const ESTILO_IMC   = { color: "#5e005e", weight: 0.5, fillOpacity: 0.82 };
+const ESTILO_CLIMA   = { color: "#555",    weight: 0.3,  fillOpacity: 0.85 };
+const ESTILO_IMC     = { color: "#5e005e", weight: 0.5,  fillOpacity: 0.82 };
+const ESTILO_BRECHA  = { color: "#3d2a52", weight: 0.35, fillOpacity: 0.88 };
 
 // Cada petición lleva número de orden: si al resolverse ya hay otra
 // posterior en marcha, el resultado se descarta. Sin esto, cambiar de
@@ -1208,28 +1545,45 @@ function quitarCapasDeDatos() {
   selectedFeature = null;
 }
 
+// El multipeligro no depende del escenario, y la temperatura media solo
+// existe en el moderado: comparar solo tiene sentido con el resto.
+function comparaAhora() {
+  const clave = state.indice || state.variable;
+  return state.comparar && !state.imcActive
+      && escenarioTiene("ssp245", clave) && escenarioTiene("ssp585", clave);
+}
+
 async function cargarDatos() {
   const generacion = ++generacionDatos;
   quitarCapasDeDatos();
   ocultarInfo();
 
-  const esImc = state.imcActive;
-  const pedirDatos = esImc  ? () => fetchGeoJSON(imcFilename(state.imcTipo))
-                    : state.indice ? () => distritosConValores(state.indice, state.estacion)
-                    : () => fetchGeoJSON(climateFilename(state.variable, state.estacion));
+  const esImc  = state.imcActive;
+  const clave  = state.indice || state.variable;
+  const compara = comparaAhora();
+
+  const pedirDatos = esImc   ? () => cargarValores(imcFilename(state.imcTipo))
+                                       .then(d => distritosDesdeValores(d))
+                    : compara ? () => distritosComparados(clave, state.estacion)
+                    :           () => distritosConValores(clave, state.estacion, state.escenario);
+
   showLoader(esImc
     ? `Cargando ${NOMBRE_VARIABLE.imc} · Anual`
-    : `Cargando ${NOMBRE_VARIABLE[state.variable]} · ${seasonLabel(state.estacion)}`);
+    : compara
+      ? `Comparando escenarios · ${NOMBRE_VARIABLE[clave]} · ${seasonLabel(state.estacion)}`
+      : `Cargando ${NOMBRE_VARIABLE[clave]} · ${ESCENARIOS[state.escenario].etiqueta} · ${seasonLabel(state.estacion)}`);
 
   try {
     const data = await pedirDatos();
     if (generacion !== generacionDatos) return;
 
-    const base = esImc ? ESTILO_IMC : ESTILO_CLIMA;
+    const base = esImc ? ESTILO_IMC : compara ? ESTILO_BRECHA : ESTILO_CLIMA;
     const capa = L.geoJSON(data, {
+      pane: "datos",
       style: feat => Object.assign({
-        fillColor: esImc ? getImcColor(feat.properties.valor)
-                         : getClimateColor(feat.properties.valor, state.variable),
+        fillColor: esImc   ? getImcColor(feat.properties.valor)
+                 : compara ? getBrechaColor(feat.properties.valor, clave)
+                 :           getClimateColor(feat.properties.valor, clave),
       }, base),
       onEachFeature: (feat, layer) => {
         layer.on({
@@ -1246,8 +1600,9 @@ async function cargarDatos() {
     }).addTo(map);
 
     if (esImc) imcLayer = capa; else climateLayer = capa;
-    if (refGeoLayer) refGeoLayer.bringToFront();
-    if (esImc) buildImcLegend(); else buildClimateLegend(state.variable);
+    if (esImc) buildImcLegend();
+    else if (compara) buildBrechaLegend(clave);
+    else buildClimateLegend(clave);
     refrescarConsulta();
   } catch (err) {
     if (generacion !== generacionDatos) return;
@@ -1258,6 +1613,20 @@ async function cargarDatos() {
   } finally {
     hideLoader();
   }
+}
+
+// El multipeligro llega en el mismo formato de valores sueltos que el resto.
+async function distritosDesdeValores(datos) {
+  const geo = await cargarGeometriaDistritos();
+  comprobarLargo(datos, geo, "el índice multipeligro");
+  return {
+    type: "FeatureCollection",
+    features: geo.features.map((f, i) => ({
+      type: "Feature",
+      geometry: f.geometry,
+      properties: { DISTRITO: f.properties.DISTRITO, valor: datos.valores[i] },
+    })),
+  };
 }
 
 // ─── Cargar capa de referencia ────────────────────────────
@@ -1273,9 +1642,9 @@ async function cargarReferencia(key) {
     const data = await fetchGeoJSON(refFilename(key));
     if (generacion !== generacionRef) return;
     refGeoLayer = L.geoJSON(data, {
+      pane: "referencia",
       style: { color: "#1a2a4e", weight: 1.4, fillOpacity: 0, interactive: false },
     }).addTo(map);
-    refGeoLayer.bringToFront();
   } catch (err) {
     console.warn("Capa de referencia no disponible:", err.message);
   } finally {
@@ -1355,6 +1724,7 @@ function activarIndice(clave) {
   state.variable  = clave;
   state.imcActive = false;
   setSeasonBlocked(false);
+  refrescarBotonComparar();
   cargarDatos();
 }
 
@@ -1372,6 +1742,11 @@ setupRadioGroup("varGroup", value => {
   state.imcActive = value === "imc";
   state.variable  = value;
   setSeasonBlocked(state.imcActive);
+  if (state.imcActive && state.comparar) {
+    state.comparar = false;
+    marcarEscenario();
+  }
+  refrescarBotonComparar();
   cargarDatos();
 });
 
@@ -1385,6 +1760,119 @@ setupRadioGroup("refLayerGroup", value => {
   state.refLayer = value;
   cargarReferencia(value);
 });
+
+// ─── Escenario de emisiones ───────────────────────────────
+// Dos cápsulas y un tercer estado: comparar. Elegir un escenario apaga la
+// comparación, y comparar no borra cuál estaba elegido —al volver, el mapa
+// vuelve al que el usuario tenía.
+const grupoEscenario = document.getElementById("escenarioGroup");
+const btnComparar    = document.getElementById("btnComparar");
+const avisoEscenario = document.getElementById("escenarioAviso");
+
+function rotularCromo() {
+  const sub = document.getElementById("navbarEscenario");
+  const pie = document.getElementById("footerEscenario");
+  const esc = ESCENARIOS[state.escenario];
+  const texto = state.comparar
+    ? "SSP2-4.5 vs SSP5-8.5 · CMIP6 · Resolución 5 km · Período 2036–2065"
+    : `Escenario ${esc.etiqueta} CMIP6 · Resolución 5 km · Período 2036–2065`;
+  if (sub) sub.textContent = texto;
+  if (pie) pie.textContent = texto;
+}
+
+// Las tarjetas de variable que el escenario en curso no tiene se apagan en
+// lugar de desaparecer: el hueco se explica solo, y quien busca la
+// temperatura media entiende por qué no está.
+function refrescarDisponibilidad() {
+  let faltante = null;
+  document.querySelectorAll("#varGroup .radio-card").forEach(card => {
+    const clave = card.dataset.value;
+    const solo = SOLO_EN_ESCENARIO[clave];
+    if (!solo) return;
+    const fuera = state.comparar || solo !== state.escenario;
+    card.classList.toggle("no-disponible", fuera);
+    if (fuera) faltante = clave;
+    const desc = card.querySelector(".radio-desc");
+    if (desc) {
+      if (!desc.dataset.original) desc.dataset.original = desc.textContent;
+      desc.textContent = fuera ? `Solo en ${ESCENARIOS[solo].etiqueta}` : desc.dataset.original;
+    }
+  });
+
+  if (avisoEscenario) {
+    avisoEscenario.style.display = faltante ? "block" : "none";
+    if (faltante) {
+      avisoEscenario.textContent = state.comparar
+        ? `La ${NOMBRE_VARIABLE[faltante]} no se puede comparar: no hay malla del SSP5-8.5.`
+        : `La ${NOMBRE_VARIABLE[faltante]} solo está en el ${ESCENARIOS[SOLO_EN_ESCENARIO[faltante]].etiqueta}.`;
+    }
+  }
+
+  // Si la variable en pantalla es justo la que deja de existir, el mapa no
+  // puede quedarse en blanco: se pasa a la máxima, que es su pariente más
+  // cercano, y la tarjeta se marca sola.
+  const actual = state.indice || state.variable;
+  if ((!state.imcActive && !escenarioTiene(state.escenario, actual))
+      || (state.comparar && SOLO_EN_ESCENARIO[actual])) {
+    state.variable = "tasmax";
+    state.indice = null;
+    document.querySelectorAll("#varGroup .radio-card").forEach(c =>
+      c.classList.toggle("active", c.dataset.value === "tasmax"));
+    document.getElementById("indicePanel").hidden = true;
+    return true;
+  }
+  return false;
+}
+
+function marcarEscenario() {
+  grupoEscenario.querySelectorAll(".capsula").forEach(b => {
+    const activa = !state.comparar && b.dataset.value === state.escenario;
+    b.classList.toggle("active", activa);
+    b.setAttribute("aria-pressed", String(activa));
+  });
+  grupoEscenario.classList.toggle("comparando", state.comparar);
+  btnComparar.classList.toggle("active", state.comparar);
+  btnComparar.setAttribute("aria-pressed", String(state.comparar));
+  btnComparar.querySelector(".comparar-texto").textContent =
+    state.comparar ? "Viendo la brecha" : "Comparar los dos";
+  document.body.classList.toggle("modo-comparar", state.comparar);
+  refrescarDisponibilidad();
+  rotularCromo();
+}
+
+function elegirEscenario(clave) {
+  if (!ESCENARIOS[clave]) return;
+  if (state.escenario === clave && !state.comparar) return;
+  state.escenario = clave;
+  state.comparar = false;
+  marcarEscenario();
+  cargarDatos();
+}
+
+function alternarComparacion() {
+  if (state.imcActive) return;
+  state.comparar = !state.comparar;
+  marcarEscenario();
+  cargarDatos();
+}
+
+grupoEscenario.querySelectorAll(".capsula").forEach(btn => {
+  btn.addEventListener("click", () => elegirEscenario(btn.dataset.value));
+});
+btnComparar.addEventListener("click", alternarComparacion);
+
+// El multipeligro es un índice único, sin escenario que enfrentar.
+function refrescarBotonComparar() {
+  const bloqueado = state.imcActive;
+  btnComparar.classList.toggle("blocked", bloqueado);
+  btnComparar.disabled = bloqueado;
+  btnComparar.title = bloqueado
+    ? "El Índice Multipeligro no depende del escenario"
+    : "Pintar la distancia entre los dos escenarios";
+}
+
+marcarEscenario();
+refrescarBotonComparar();
 
 // ─── Marcador de búsqueda ─────────────────────────────────
 function placeSearchMarker(lat, lon, label) {
