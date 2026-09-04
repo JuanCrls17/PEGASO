@@ -2513,13 +2513,13 @@ body.no-scroll { overflow: hidden; }
 
 .btn-comparar:hover svg { opacity: 0.95; }
 
-/* El púrpura de la comparación es el mismo de la escala de brecha: al
-   encenderlo, el color del control anticipa el color del mapa. */
+/* Mismo azul de la casa que las cápsulas, pero cerrado hacia el institucional:
+   se distingue por profundidad, no por tono, y anticipa el color del mapa. */
 .btn-comparar.active {
-  background: linear-gradient(135deg, #6a1fa6 0%, #8f52c2 55%, #a874d8 100%);
-  border-color: #a874d8;
+  background: linear-gradient(135deg, #002163 0%, #003087 55%, #0a4aa8 100%);
+  border-color: #2f6bb5;
   color: #ffffff;
-  box-shadow: 0 2px 10px rgba(143,82,194,0.45);
+  box-shadow: 0 2px 10px rgba(0,48,135,0.5);
 }
 
 .btn-comparar.active svg { opacity: 1; }
@@ -2529,31 +2529,12 @@ body.no-scroll { overflow: hidden; }
   cursor: not-allowed;
 }
 
-.escenario-aviso {
-  margin-top: 7px;
-  font-size: 0.64rem;
-  line-height: 1.4;
-  color: rgba(255,255,255,0.5);
-  font-style: italic;
-}
-
 .escenario-nota {
   margin-top: 7px;
   font-size: 0.62rem;
   line-height: 1.4;
   color: rgba(255,255,255,0.34);
 }
-
-/* Variable que el escenario en curso no tiene: se apaga, no se esconde */
-.radio-card.no-disponible {
-  opacity: 0.34;
-  cursor: not-allowed;
-  pointer-events: none;
-  filter: grayscale(0.55);
-}
-
-/* La media comparte el frasco del termómetro con la máxima y la mínima */
-.radio-card.active .icon-tasmed { background: rgba(255,255,255,0.15); }
 
 /* =========================================================
    EL DISTRITO CONSULTADO SE LEVANTA
@@ -2591,7 +2572,7 @@ body.no-scroll { overflow: hidden; }
 
 .info-popup.comparando .leaflet-popup-content-wrapper,
 .map-info-panel.comparando {
-  box-shadow: 0 14px 38px rgba(53,20,90,0.30), 0 3px 10px rgba(10,25,55,0.22);
+  box-shadow: 0 14px 38px rgba(0,32,90,0.30), 0 3px 10px rgba(10,25,55,0.22);
 }
 
 /* =========================================================
@@ -2610,8 +2591,8 @@ body.no-scroll { overflow: hidden; }
   gap: 1px;
   padding: 9px 10px 10px;
   border-radius: 7px;
-  background: linear-gradient(180deg, #f6f1fc 0%, #efe7f8 100%);
-  border: 1px solid rgba(143,82,194,0.24);
+  background: linear-gradient(180deg, #eef3fc 0%, #e3ebf8 100%);
+  border: 1px solid rgba(0,48,135,0.20);
 }
 
 .cmp-brecha-rotulo {
@@ -2619,7 +2600,7 @@ body.no-scroll { overflow: hidden; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: #7d5aa0;
+  color: #2d5494;
 }
 
 .cmp-brecha-cifra {
@@ -2633,7 +2614,7 @@ body.no-scroll { overflow: hidden; }
 
 .cmp-brecha-txt {
   font-size: 0.65rem;
-  color: #6b5a80;
+  color: #5a6880;
   text-align: center;
   line-height: 1.35;
 }
@@ -2647,8 +2628,8 @@ body.no-scroll { overflow: hidden; }
 }
 
 .cmp-fila.severa {
-  background: #fdf4f3;
-  border-left-color: #b34a3a;
+  background: #fdf5f0;
+  border-left-color: #c15a2a;
 }
 
 .cmp-fila-cab {
@@ -2711,7 +2692,7 @@ body.no-scroll { overflow: hidden; }
   margin-bottom: 5px;
 }
 
-.legend-escenario.comparando { color: #7d3aa8; }
+.legend-escenario.comparando { color: #003087; }
 
 @media (max-width: 768px) {
   .capsula { padding: 8px 9px; min-height: 44px; }
@@ -2731,15 +2712,15 @@ body.no-scroll { overflow: hidden; }
    y el trazo de la selección toman el púrpura de la escala de brecha, para
    que el modo se reconozca sin mirar el panel. */
 body.modo-comparar .pulso-seleccion span {
-  border-color: #8f52c2;
-  box-shadow: 0 0 12px rgba(143,82,194,0.5);
+  border-color: #003087;
+  box-shadow: 0 0 12px rgba(0,48,135,0.5);
 }
 
 body.modo-comparar .map-legend .legend-title {
-  color: #6a1fa6;
-  border-bottom-color: #a874d8;
+  color: #002163;
+  border-bottom-color: #003087;
 }
 
 body.modo-comparar .map-legend .legend-ref-note {
-  border-left-color: #a874d8;
+  border-left-color: #003087;
 }

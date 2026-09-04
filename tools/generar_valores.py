@@ -45,8 +45,12 @@ VARIABLES = {
     "pr":     {"unidad": "%",  "nombre": "Precipitación"},
     "tasmax": {"unidad": "°C", "nombre": "Temperatura máxima"},
     "tasmin": {"unidad": "°C", "nombre": "Temperatura mínima"},
-    "tasmed": {"unidad": "°C", "nombre": "Temperatura media"},
 }
+
+# La malla trae también tasmed, pero no se publica: resulta ser exactamente
+# (tasmax + tasmin) / 2 —comprobado celda por celda, hasta 1e-14— y no una
+# salida propia del modelo. Además no existe en el SSP5-8.5, con lo que
+# rompería la paridad entre escenarios a cambio de un dato derivado.
 
 INDICES = {
     "txx": {"nc": "TXx", "unidad": "°C"},

@@ -19,7 +19,7 @@ const TEMP_COLORS = [
 ];
 
 const NOMBRE_VARIABLE = {
-  pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima", tasmed: "T° Media",
+  pr: "Precipitación", tasmax: "T° Máxima", tasmin: "T° Mínima",
   imc: "Índice Multipeligro",
   txx: "Día más cálido", txn: "Día más fresco",
   tnx: "Noche más cálida", tnn: "Noche más fría",
@@ -40,14 +40,6 @@ const ESCENARIOS = {
   },
 };
 
-// La temperatura media solo llegó en el escenario moderado: no hay malla
-// equivalente en el severo, así que la tarjeta se apaga al cambiar.
-const SOLO_EN_ESCENARIO = { tasmed: "ssp245" };
-
-function escenarioTiene(escenario, clave) {
-  const unico = SOLO_EN_ESCENARIO[clave];
-  return !unico || unico === escenario;
-}
 
 // ─── Escala de la brecha entre escenarios ─────────────────
 // Al comparar, el mapa no pinta un escenario sino la distancia entre los
@@ -60,19 +52,23 @@ function escenarioTiene(escenario, clave) {
 // El cero no cae al centro porque el dato no es simétrico: que el escenario
 // moderado caliente más que el severo pasa en el 1 % del territorio, y
 // merece un tono aparte, no la mitad de la escala.
-// Los pasos están medidos en OKLCH para que dos tramos vecinos se
-// distingan siempre —ninguna pareja baja de ΔE 8—, y el salto de signo se
-// marca con un cambio de familia de color, no con un tono más claro.
+// La brecha se pinta en el azul de la casa —el mismo tono del cromo, más
+// abierto y más cerrado—, que ninguna de las dos rampas de datos ocupa: la
+// de temperatura va de amarillo a rojo y la de lluvia de marrón a verde
+// azulado, así que el azul se lee de inmediato como «esto es otra cosa».
+// El ámbar queda para lo excepcional: que el escenario moderado vaya más
+// lejos que el severo, que pasa en el 1 % del territorio.
+// Los pasos están medidos en OKLCH y ninguna pareja vecina baja de ΔE 8.
 const BRECHA_ESCALAS = {
   temp: {
     bins: [-999, -0.2, 0, 0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 999],
-    colores: ["#006457", "#7fb8ac", "#ebd4f6", "#d3b3e2", "#bc92ce",
-              "#a472ba", "#8d51a6", "#762f92", "#5f007d"],
+    colores: ["#ad7227", "#efc395", "#ccdef9", "#a6bee5", "#80a0d1",
+              "#5c82bd", "#3864a8", "#114593", "#00257d"],
   },
   prec: {
     bins: [-999, -40, -20, -10, 0, 10, 20, 40, 999],
-    colores: ["#005e4f", "#34897a", "#76b5a8", "#b3e3d9",
-              "#e6cdf2", "#ba90cc", "#8e55a6", "#630e80"],
+    colores: ["#975800", "#b78246", "#d6ad80", "#f6d8ba",
+              "#cddffd", "#83a3d5", "#3d68ac", "#002c82"],
   },
 };
 
@@ -144,7 +140,7 @@ const IMC_DESC = {
 
 // ─── Estado de la aplicación ──────────────────────────────
 const state = {
-  variable:  "pr",     // "pr" | "tasmax" | "tasmin" | "tasmed" | "imc"
+  variable:  "pr",     // "pr" | "tasmax" | "tasmin" | "imc"
   estacion:  "anual",
   imcActive: false,
   imcTipo:   "agricola",
@@ -459,11 +455,6 @@ const VAR_INFO = {
     desc: "Cambio proyectado en la temperatura mínima diaria (°C). Afecta principalmente las heladas, la biodiversidad altoandina y los ciclos agrícolas.",
     sectores: ["Agricultura", "Ganadería", "Biodiversidad", "Energía"],
   },
-  tasmed: {
-    title: "Temperatura Media",
-    desc: "Cambio proyectado en la temperatura media diaria (°C). Es la lectura de fondo del calentamiento, la que resume el desplazamiento de todo el ciclo diario. <strong>Solo está disponible para el escenario SSP2-4.5</strong>: no se cuenta con la malla equivalente del SSP5-8.5.",
-    sectores: ["Planificación territorial", "Agricultura", "Salud", "Energía"],
-  },
   indices: {
     title: "Índices extremos de temperatura",
     desc: "Cuatro índices ETCCDI que no describen el promedio sino el extremo del período: <strong>TXx</strong> el día más caluroso y <strong>TXn</strong> el más fresco, ambos de la temperatura máxima diaria; <strong>TNx</strong> la noche más cálida y <strong>TNn</strong> la más fría, de la mínima. Se publican como cambio en grados frente a 1981–2010.",
@@ -502,10 +493,8 @@ function climateInterpret(variable, valor) {
     return { text: `${extremo.quien} será ${cuanto} ${sentido} que en 1981–2010. ${extremo.lectura}` };
   }
 
-  if (variable === "tasmax" || variable === "tasmin" || variable === "tasmed") {
-    const lbl = variable === "tasmax" ? "días más cálidos"
-              : variable === "tasmin" ? "noches más frías"
-              : "la temperatura media";
+  if (variable === "tasmax" || variable === "tasmin") {
+    const lbl = variable === "tasmax" ? "días más cálidos" : "noches más frías";
     if (v < 0.5)  return { text: `Calentamiento leve (+${v.toFixed(1)}°C en ${lbl}). Cambio dentro de variabilidad natural.` };
     if (v < 1.0)  return { text: `Calentamiento <strong>moderado</strong> (+${v.toFixed(1)}°C en ${lbl}). Impactos perceptibles en agricultura y salud.` };
     if (v < 1.5)  return { text: `Calentamiento <strong>alto</strong> (+${v.toFixed(1)}°C en ${lbl}). Estrés hídrico y térmico significativo.` };
@@ -763,8 +752,7 @@ function lineaContexto(valor, variable, isImc, punto) {
 // marca es el color con el que el distrito está pintado.
 function escalaDe(variable) {
   if (variable === "pr")     return { bins: PREC_BINS, colores: PREC_COLORS };
-  if (variable === "tasmax" || variable === "tasmin" || variable === "tasmed"
-      || INDICES_EXTREMOS[variable])
+  if (variable === "tasmax" || variable === "tasmin" || INDICES_EXTREMOS[variable])
     return { bins: TEMP_BINS, colores: TEMP_COLORS };
   return null;
 }
@@ -1548,9 +1536,7 @@ function quitarCapasDeDatos() {
 // El multipeligro no depende del escenario, y la temperatura media solo
 // existe en el moderado: comparar solo tiene sentido con el resto.
 function comparaAhora() {
-  const clave = state.indice || state.variable;
-  return state.comparar && !state.imcActive
-      && escenarioTiene("ssp245", clave) && escenarioTiene("ssp585", clave);
+  return state.comparar && !state.imcActive;
 }
 
 async function cargarDatos() {
@@ -1559,7 +1545,7 @@ async function cargarDatos() {
   ocultarInfo();
 
   const esImc  = state.imcActive;
-  const clave  = state.indice || state.variable;
+  const clave   = state.indice || state.variable;
   const compara = comparaAhora();
 
   const pedirDatos = esImc   ? () => cargarValores(imcFilename(state.imcTipo))
@@ -1767,7 +1753,6 @@ setupRadioGroup("refLayerGroup", value => {
 // vuelve al que el usuario tenía.
 const grupoEscenario = document.getElementById("escenarioGroup");
 const btnComparar    = document.getElementById("btnComparar");
-const avisoEscenario = document.getElementById("escenarioAviso");
 
 function rotularCromo() {
   const sub = document.getElementById("navbarEscenario");
@@ -1778,50 +1763,6 @@ function rotularCromo() {
     : `Escenario ${esc.etiqueta} CMIP6 · Resolución 5 km · Período 2036–2065`;
   if (sub) sub.textContent = texto;
   if (pie) pie.textContent = texto;
-}
-
-// Las tarjetas de variable que el escenario en curso no tiene se apagan en
-// lugar de desaparecer: el hueco se explica solo, y quien busca la
-// temperatura media entiende por qué no está.
-function refrescarDisponibilidad() {
-  let faltante = null;
-  document.querySelectorAll("#varGroup .radio-card").forEach(card => {
-    const clave = card.dataset.value;
-    const solo = SOLO_EN_ESCENARIO[clave];
-    if (!solo) return;
-    const fuera = state.comparar || solo !== state.escenario;
-    card.classList.toggle("no-disponible", fuera);
-    if (fuera) faltante = clave;
-    const desc = card.querySelector(".radio-desc");
-    if (desc) {
-      if (!desc.dataset.original) desc.dataset.original = desc.textContent;
-      desc.textContent = fuera ? `Solo en ${ESCENARIOS[solo].etiqueta}` : desc.dataset.original;
-    }
-  });
-
-  if (avisoEscenario) {
-    avisoEscenario.style.display = faltante ? "block" : "none";
-    if (faltante) {
-      avisoEscenario.textContent = state.comparar
-        ? `La ${NOMBRE_VARIABLE[faltante]} no se puede comparar: no hay malla del SSP5-8.5.`
-        : `La ${NOMBRE_VARIABLE[faltante]} solo está en el ${ESCENARIOS[SOLO_EN_ESCENARIO[faltante]].etiqueta}.`;
-    }
-  }
-
-  // Si la variable en pantalla es justo la que deja de existir, el mapa no
-  // puede quedarse en blanco: se pasa a la máxima, que es su pariente más
-  // cercano, y la tarjeta se marca sola.
-  const actual = state.indice || state.variable;
-  if ((!state.imcActive && !escenarioTiene(state.escenario, actual))
-      || (state.comparar && SOLO_EN_ESCENARIO[actual])) {
-    state.variable = "tasmax";
-    state.indice = null;
-    document.querySelectorAll("#varGroup .radio-card").forEach(c =>
-      c.classList.toggle("active", c.dataset.value === "tasmax"));
-    document.getElementById("indicePanel").hidden = true;
-    return true;
-  }
-  return false;
 }
 
 function marcarEscenario() {
@@ -1836,7 +1777,6 @@ function marcarEscenario() {
   btnComparar.querySelector(".comparar-texto").textContent =
     state.comparar ? "Viendo la brecha" : "Comparar los dos";
   document.body.classList.toggle("modo-comparar", state.comparar);
-  refrescarDisponibilidad();
   rotularCromo();
 }
 

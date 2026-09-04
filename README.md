@@ -14,27 +14,31 @@ orientado a la gestión y la adaptación en los servicios sectoriales.
 
 | Escenario | Trayectoria | Disponible |
 |---|---|---|
-| `ssp245` — SSP2-4.5 | Las emisiones se estabilizan hacia mitad de siglo | 4 variables · 4 índices · 5 cortes |
+| `ssp245` — SSP2-4.5 | Las emisiones se estabilizan hacia mitad de siglo | 3 variables · 4 índices · 5 cortes |
 | `ssp585` — SSP5-8.5 | Las emisiones siguen creciendo sin freno | 3 variables · 4 índices · 5 cortes |
 
 Los dos comparten malla (374 × 261 celdas de 0,05°), período y ensamble de
-modelos, así que la resta entre ellos es válida celda a celda. El visor los
-ofrece por separado y en un tercer modo —**comparar**— que pinta la brecha:
-cuánto añade el escenario severo sobre el moderado.
+modelos, así que la resta entre ellos es válida celda a celda, y ofrecen
+exactamente las mismas capas. El visor los presenta por separado y en un
+tercer modo —**comparar**— que pinta la brecha: cuánto añade el escenario
+severo sobre el moderado.
 
-La **temperatura media** solo existe en el SSP2-4.5: no se cuenta con la malla
-equivalente del SSP5-8.5, y su tarjeta se apaga al cambiar de escenario.
+La malla del SSP2-4.5 trae además `tasmed`, que no se publica: resulta ser
+exactamente `(tasmax + tasmin) / 2` —comprobado celda por celda— y no una
+salida propia del modelo. Publicarla añadiría una capa derivada que el
+SSP5-8.5 no tiene, a cambio de ninguna información nueva.
 
 ## Capas de datos
 
 ### Variables climáticas
 
-| Variable | Descripción | Escenarios | Períodos |
-|---|---|---|---|
-| Precipitación (`pr`) | Cambio relativo (%) | ambos | Anual · Verano · Otoño · Invierno · Primavera |
-| Temperatura máxima (`tasmax`) | Cambio proyectado (°C) | ambos | Anual · Verano · Otoño · Invierno · Primavera |
-| Temperatura mínima (`tasmin`) | Cambio proyectado (°C) | ambos | Anual · Verano · Otoño · Invierno · Primavera |
-| Temperatura media (`tasmed`) | Cambio proyectado (°C) | solo SSP2-4.5 | Anual · Verano · Otoño · Invierno · Primavera |
+| Variable | Descripción | Períodos |
+|---|---|---|
+| Precipitación (`pr`) | Cambio relativo (%) | Anual · Verano · Otoño · Invierno · Primavera |
+| Temperatura máxima (`tasmax`) | Cambio proyectado (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+| Temperatura mínima (`tasmin`) | Cambio proyectado (°C) | Anual · Verano · Otoño · Invierno · Primavera |
+
+Las tres existen en los dos escenarios.
 
 ### Índices derivados
 
@@ -90,8 +94,9 @@ Capas de referencia: departamentos (25), provincias (196) y cuencas (231 unidade
 - Buscador de lugares con sugerencias y resaltado del distrito
 - Búsqueda por coordenadas exactas (latitud / longitud)
 - Cambio de escenario de emisiones, capa de referencia y período estacional
-- Modo comparación: el mapa pinta la brecha entre escenarios con escala
-  propia, y la ficha del punto enfrenta las dos lecturas sobre la misma banda
+- Modo comparación: el mapa pinta la brecha entre escenarios en el azul
+  institucional —escala propia, distinta de las dos rampas de datos— y la
+  ficha del punto enfrenta las dos lecturas sobre la misma banda
 - Al consultar un distrito, el resto del mapa se hunde y el territorio
   elegido queda elevado, con su ficha saliendo del mapa
 - Ámbito restringido al territorio nacional, con encuadre que se adapta
