@@ -697,6 +697,22 @@ const VEREDICTO = {
 // departamento de…»— y los tres tramos centrales con «en».
 const VEREDICTO_CON_DE = new Set(["mas", "menos"]);
 
+// El verbo nombra la magnitud en vez de la dirección. «Bajan más que este»
+// admitía dos lecturas opuestas —perder más lluvia o quedar por debajo—, y
+// además escondía por qué extremo se ordena el grupo: en 19 de los 25
+// departamentos conviven distritos que ganan y que pierden, y ahí dos fichas
+// de idéntica estructura significaban lo contrario. «Pierden» y «ganan» lo
+// dicen solos.
+const HABLA = {
+  imc:    { pl: "están más expuestos que este", sg: "está más expuesto que este" },
+  prBaja: { pl: "pierden más lluvia que este",  sg: "pierde más lluvia que este" },
+  prSube: { pl: "ganan más lluvia que este",    sg: "gana más lluvia que este" },
+  temp:   { pl: "se calientan más que este",    sg: "se calienta más que este" },
+};
+
+// 43 de las 196 provincias tienen menos de seis distritos, y una tiene uno.
+const MINIMO_PARA_VEREDICTO = 5;
+
 function tramoDe(fraccion) {
   if (fraccion < 0.10) return "mas";
   if (fraccion < 0.35) return "sobre";
@@ -722,16 +738,15 @@ function contextoRegional(valor, variable, isImc, punto) {
   // En precipitación el extremo relevante depende del signo del cambio
   const reduce = variable === "pr" && !isImc && v < 0;
   const { delante, detras } = posicionEnGrupo(v, grupo.valores, !reduce);
-  // La fracción se calcula sobre los distritos con los que cabe compararse,
-  // sin los empatados: si todo el grupo tuviera el mismo valor, no habría
-  // ni delantera ni retraso que leer y la lectura es la del medio.
+  // El recuento que se enseña y la fracción que decide el tramo salen del
+  // mismo denominador: los distritos con los que cabe compararse, sin el
+  // propio ni los empatados. Contra el total salían cuentas que no cuadraban
+  // —nueve delante y nueve detrás daban «9 de sus 19», que a ojo son 47 % y
+  // no el centro que la etiqueta anuncia—.
   const comparables = delante + detras;
   const tramo = tramoDe(comparables ? delante / comparables : 0.5);
 
-  const habla = isImc  ? { pl: "están más expuestos que este", sg: "está más expuesto que este" }
-              : reduce ? { pl: "bajan más que este",           sg: "baja más que este" }
-              :          { pl: "suben más que este",           sg: "sube más que este" };
-  const veredicto = VEREDICTO[isImc ? "imc" : reduce ? "baja" : "sube"][tramo];
+  const habla = HABLA[isImc ? "imc" : variable === "pr" ? (reduce ? "prBaja" : "prSube") : "temp"];
   const lugar = `${VEREDICTO_CON_DE.has(tramo) ? donde.articulo : donde.en} ${nombre}`;
 
   // «Solo» donde el recuento es pequeño: sin él, un número bajo suelto no
@@ -741,8 +756,18 @@ function contextoRegional(valor, variable, isImc, punto) {
                 : tramo === "mas" ? `solo ${delante}`
                 : `${delante}`;
   const verbo = delante > 1 ? habla.pl : habla.sg;
-  return `<strong>${veredicto}</strong> ${lugar}: ` +
-         `${cuantos} de sus ${total} distritos ${verbo}.`;
+  const recuento = delante === comparables
+    ? `todos los demás ${habla.pl}`
+    : `${cuantos} de los otros ${comparables} ${verbo}`;
+
+  // Con muy pocos con los que compararse el tramo lo decide un solo vecino,
+  // así que se calla el veredicto y queda el recuento, que sigue siendo cierto.
+  if (comparables < MINIMO_PARA_VEREDICTO) {
+    return `${recuento.charAt(0).toLocaleUpperCase("es")}${recuento.slice(1)} ${donde.en} ${nombre}.`;
+  }
+
+  const veredicto = VEREDICTO[isImc ? "imc" : reduce ? "baja" : "sube"][tramo];
+  return `<strong>${veredicto}</strong> ${lugar}: ${recuento}.`;
 }
 
 // Al comparar, lo que se sitúa en la región no es el cambio sino la
