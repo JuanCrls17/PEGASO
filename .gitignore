@@ -1,0 +1,69 @@
+# ── Datos ──
+# El visor carga una sola geometría —data/distritos.geojson— y los valores
+# sueltos de data/valores/. Los distritos_cambio_*.geojson son el formato
+# anterior, con la geometría repetida en cada archivo: 39 MB que nadie pide.
+data/distritos_cambio_*.geojson
+
+# El multipeligro se publica ya resuelto en data/valores/imc_agricola.json.
+# Este geojson es su malla de origen, 2,5 MB que el visor no pide: se queda
+# fuera, igual que las NetCDF de las que sale todo lo demás.
+data/indice_multipeligro_agricola_2036_2065.geojson
+
+# Documentación de trabajo y material que el sitio no sirve
+MARCO-DE-ESTILO.md
+Minam.jpg
+Logo_SENAMHI.svg.png
+
+# Restos de la etapa anterior, que nadie carga: Leaflet va por CDN, el visor
+# es index.html + assets/app.js, y el logo en negativo dejó de usarse cuando
+# la barra pasó a blanca.
+assets/leaflet.js
+assets/leaflet.css
+assets/map_controls.js
+assets/style.css
+assets/image.png
+assets/nubes.jpg
+assets/logo_senamhi.png
+
+#
+# Las mallas NetCDF de origen son 84 MB y el sitio no las sirve: de ellas
+# sale data/indices/, que pesa 256 KB. Se quedan fuera del repo.
+INDICES_EXTREMOS_CLIMATICOS/
+INDICES_EXTREMOS_CLIMATICOS85/
+INDICES_EXTREMOS_CLIMATICOS245/
+cambios/
+*.nc
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Entornos virtuales ──
+.env
+.venv
+env/
+venv/
+
+# ── Sistema operativo ──
+.DS_Store
+Thumbs.db
+*.Zone.Identifier
+
+# ── IDEs y herramientas ──
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Logs y temporales ──
+*.log
+*.tmp
+
+# ── Empaquetados / respaldos ──
+*.zip

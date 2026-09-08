@@ -1,0 +1,818 @@
+/* =========================================================
+   PEGASO — Estilo SORIΛN
+   Trasplante del marco de estilo: una sola capa de tokens y los
+   patrones que el marco pide y aquí no existían (la barra en blanco,
+   el filete de la escala, la firma que respira en el pie, el vidrio
+   del panel y de lo que se apoya en el mapa, y el foco).
+
+   Fue un tema conmutable y ahora es el estilo de la casa, sin
+   alternativa que elegir. Se queda en su propia hoja, cargada después
+   de style_standalone.css, porque ahí se lee de un vistazo qué añade
+   el marco sobre lo que ya había.
+
+   El selector es «html:root» y no «html» a secas a propósito: pesa
+   (0,1,1), lo mismo que pesaba el atributo del tema, así que cada
+   regla conserva exactamente la fuerza con la que se probó frente a
+   las de la hoja base. Bajarlo a un elemento suelto cambiaría quién
+   gana en una docena de sitios.
+   ========================================================= */
+
+/* ── Tokens del marco ─────────────────────────────────────
+   La única capa que se toca al cambiar de marca: mover --navy aquí
+   repinta barra, panel, pie, leyenda y ficha de una vez. */
+:root {
+  /* Marca */
+  --navy:      #0a1c48;   /* identidad: titulares, lo elegido, cromo */
+  --navy-700:  #123067;   /* navy que admite texto blanco encima */
+  --blue:      #0b6bb8;   /* acción: foco, bordes vivos, lo elegido en oscuro */
+  --blue-600:  #0a5c9e;   /* el --blue puro no llega a 4.5:1 como texto */
+
+  /* Texto y superficie */
+  --ink:       #1c2430;
+  --muted:     #5a6675;
+  --line:      #d9e0e8;
+  --surface:   #ffffff;
+  --canvas:    #eef2f6;
+  --accent:    #f3f7fb;
+
+  /* Oscuro: el cromo de la plataforma es una banda oscura permanente */
+  --deep:      #061027;
+  --on-deep:   #a9c0da;
+  --eyebrow:   #8fb7e0;
+  --glow:      122 178 236;   /* en canal suelto: admite cualquier opacidad */
+
+  --radius-sm: 8px;
+
+  /* La escala como firma. PEGASO no tiene una rampa sino varias —una por
+     variable—, así que el filete no es fijo: app.js escribe aquí la del
+     dato que está en pantalla. El valor de reserva es el de precipitación,
+     que es la variable con la que abre. */
+  --filete: linear-gradient(90deg,
+    #663300 0%, #7b4d1b 7%, #916836 14%, #a68351 21%, #bc9d6d 29%,
+    #d2b888 36%, #e7d3a3 43%, #c1f4db 50%, #a1d4bf 57%, #80b3a3 64%,
+    #609387 71%, #40736b 79%, #20534f 86%, #003333 100%);
+}
+
+/* ── Remapeo sobre los tokens que el proyecto ya usaba ── */
+html:root {
+  --azul:       var(--navy);
+  --azul-med:   var(--navy-700);
+  --azul-light: var(--accent);
+  --gris-bg:    var(--canvas);
+  --gris-borde: var(--line);
+  --gris-txt:   var(--muted);
+  --blanco:     var(--surface);
+
+  /* El cromo baja del negro azulado al navy de la casa: tres paradas,
+     las mismas para barra, panel y pie. */
+  --cromo-1:     rgb(6 16 39 / 97%);
+  --cromo-2:     rgb(10 28 72 / 96%);
+  --cromo-3:     rgb(18 48 103 / 95%);
+  --cromo-borde: rgb(11 107 184 / 78%);
+
+  /* Sombras tintadas de navy: en gris se ensucian sobre fondo azulado */
+  --shadow-sm: 0 2px 10px rgb(10 28 72 / 8%);
+  --shadow-md: 0 10px 30px rgb(10 28 72 / 14%);
+
+  --radius: 12px;
+
+  color-scheme: light;
+}
+
+html:root body { color: var(--ink); }
+
+/* =========================================================
+   1 · LA BARRA, EN BLANCO
+   SORIΛN es un sistema claro: el blanco es la superficie y el
+   oscuro queda para las láminas sobre imagen —aquí, el panel de
+   controles, el mapa y el pie—. La cabecera va en superficie, con
+   los logos a color y el nombre en el navy de la casa.
+   ========================================================= */
+html:root .navbar {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: none;
+  box-shadow: 0 1px 0 rgb(10 28 72 / 8%), 0 2px 14px rgb(10 28 72 / 5%);
+  /* El resplandor azul de la barra oscura no tiene sentido en blanco */
+  animation: fadeInDown 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+html:root .navbar::after { display: none; }
+
+html:root .navbar-logo,
+html:root .navbar-logo-minam,
+html:root .navbar-logo-minam-movil {
+  /* La sombra caída servía para despegarlos del azul marino */
+  filter: none;
+}
+
+html:root .navbar-divider { background: var(--line); }
+
+html:root .navbar-title {
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-shadow: none;
+}
+
+html:root .navbar-subtitle {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* =========================================================
+   2 · LA MARCA
+   El nombre en el navy de la casa, muy abierto y sin sombra: en
+   blanco la luz sobra y lo que hace falta es aire. El interletraje
+   deja hueco también detrás de la última letra, y se descuenta con
+   el mismo número y el signo cambiado, o el nombre nunca alinea
+   con la columna que tiene debajo.
+   ========================================================= */
+html:root .brand-name {
+  color: var(--navy);
+  font-size: clamp(1.6rem, 2.4vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  margin-right: -0.16em;
+  white-space: nowrap;
+  text-shadow: none;
+}
+
+/* La A sin travesaño hereda color con currentColor, pero no el aire:
+   con este interletraje el trazo pide algo más de ancho */
+html:root .brand-a { width: 0.8em; }
+
+html:root .brand-name:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 4px;
+}
+
+/* En teléfono la pista de que el nombre esconde algo va sobre blanco */
+html:root .brand-pista {
+  background: var(--accent);
+  border-color: rgb(10 28 72 / 22%);
+  color: var(--navy);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:root .brand-pista {
+    animation: pistaLatidoClaro 2.6s ease-in-out 1.2s 3;
+  }
+}
+
+@keyframes pistaLatidoClaro {
+  0%, 100% { transform: scale(1);    background: #f3f7fb; }
+  50%      { transform: scale(1.18); background: #dbe7f4; }
+}
+
+/* En teléfono el interletraje grande empujaría el nombre fuera de la barra:
+   se recorta el aire, no el tamaño, que es lo que se lee de lejos */
+@media (max-width: 768px) {
+  html:root .brand-name {
+    font-size: 1.9rem;
+    letter-spacing: 0.09em;
+    margin-right: -0.09em;
+  }
+}
+
+@media (max-width: 400px) {
+  html:root .brand-name {
+    font-size: 1.7rem;
+    letter-spacing: 0.06em;
+    margin-right: -0.06em;
+  }
+}
+
+/* La hamburguesa vive sobre la barra: en blanco sus barras van en navy */
+@media (max-width: 768px) {
+  html:root .sidebar-toggle {
+    background: var(--accent);
+    border-color: var(--line);
+  }
+
+  /* El activo heredado era blanco al 22 % sobre blanco: al tocar el botón
+     no ocurría nada a la vista. Sobre claro la respuesta se da hundiendo,
+     no aclarando. */
+  html:root .sidebar-toggle:active {
+    background: #dbe7f4;
+    border-color: rgb(10 28 72 / 22%);
+  }
+
+  html:root .sidebar-toggle .hamburger span { background: var(--navy); }
+}
+
+/* =========================================================
+   3 · LA ESCALA COMO FIRMA
+   Tres píxeles de la rampa del dato abren la lámina y cierran el
+   pie. Cuesta dos reglas y ata la página entera.
+   ========================================================= */
+html:root .navbar::before,
+html:root .footer::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--filete);
+  /* Sin transición: un degradado no interpola entre dos rampas, y el
+     cambio llega junto con el del mapa, que tampoco se funde */
+  z-index: 2;
+  pointer-events: none;
+}
+
+html:root .navbar::before { bottom: 0; }
+html:root .footer::before { top: 0; }
+
+html:root .footer { border-top: none; }
+
+/* =========================================================
+   4 · EL PIE, QUE CIERRA CON EL NOMBRE
+   La lámina oscura vuelve abajo y el nombre la firma, muy abierto
+   y en pequeño. Respira despacio —nueve segundos—, lo justo para
+   que se note que la página está viva sin llamar la atención.
+   ========================================================= */
+.footer-firma { display: none; }
+
+html:root .footer-firma {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  /* El interletraje deja hueco detrás de la O: se descuenta del margen */
+  margin-right: calc(12px - 0.22em);
+  color: #fff;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+html:root .footer-firma .brand-a {
+  height: 0.72em;
+  width: 0.8em;
+  fill: currentColor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html:root .footer-firma { animation: firmaLuz 9s ease-in-out infinite; }
+}
+
+@keyframes firmaLuz {
+  0%, 100% { text-shadow: 0 0 12px rgb(122 178 236 / 0%); }
+  50%      { text-shadow: 0 0 2px rgb(226 240 255 / 35%),
+                          0 0 20px rgb(122 178 236 / 55%); }
+}
+
+/* La firma solo entra donde sobra sitio. Por debajo de 1100 px el pie ya
+   va justo —dos líneas a la izquierda y el escenario a la derecha—, y en
+   teléfono queda en una sola línea centrada. Se retira, que es quitar y no
+   encoger; el pie no pierde nada, porque el nombre ya está en la barra. */
+@media (max-width: 1100px) {
+  html:root .footer-firma { display: none; }
+}
+
+html:root .footer-left,
+html:root .footer-right { color: var(--on-deep); }
+
+html:root .footer-attr,
+html:root .footer-scm { color: rgb(169 192 218 / 62%); }
+
+/* =========================================================
+   5 · EL PANEL, LÁMINA OSCURA
+   ========================================================= */
+html:root .sidebar { border-right-width: 2px; }
+html:root .section-label { color: var(--eyebrow); }
+html:root .sidebar-section { border-bottom-color: rgb(var(--glow) / 16%); }
+
+/* Todo el texto de segundo orden del panel iba con opacidad, y sobre un
+   fondo que ahora deja pasar lo de detrás eso no da lo que parecía: medido
+   sobre el vidrio compuesto, el subrótulo de grupo se quedaba en 2,7:1 y
+   las descripciones en 3,9:1. Los tonos del marco para fondo profundo ya
+   están calculados para esto, así que se usan enteros y no rebajados: la
+   peor pareja queda en 4,9:1. */
+html:root .group-sublabel { color: var(--eyebrow); }
+
+html:root .section-sublabel,
+html:root .radio-desc,
+html:root .escenario-nota,
+html:root .indice-cod,
+html:root .coord-toggle,
+html:root .capsula-nombre { color: var(--on-deep); }
+
+/* Sobre la cápsula elegida, que es azul sólido, el blanco al 82 % daba
+   4,4:1: el nombre del escenario va en blanco entero */
+html:root .capsula.active .capsula-nombre { color: #fff; }
+
+/* =========================================================
+   6 · LO ELEGIDO
+   Siempre el mismo par, en el panel y sobre el mapa. Sobre el
+   claro es navy con letra blanca; sobre el cromo oscuro el navy
+   desaparecería en su propio fondo, así que el par se invierte al
+   azul de acción, con el canto del halo.
+   ========================================================= */
+html:root .radio-card,
+html:root .btn-season,
+html:root .capsula,
+html:root .btn-comparar {
+  border-radius: var(--radius-sm);
+  border-color: rgb(255 255 255 / 14%);
+  background: rgb(255 255 255 / 6%);
+  transition: background 0.18s ease, border-color 0.16s ease,
+              color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* La subsección de índices sigue siendo una lista, no cuatro tarjetas:
+   toma el radio y el hover del sistema, pero no la placa de fondo */
+html:root .indice-op {
+  border-radius: var(--radius-sm);
+  transition: background 0.18s ease, border-color 0.16s ease, color 0.2s ease;
+}
+
+html:root .btn-season { border-radius: 999px; }
+
+html:root .radio-card:hover,
+html:root .btn-season:hover,
+html:root .capsula:hover,
+html:root .btn-comparar:hover:not(.blocked),
+html:root .indice-op:hover {
+  background: rgb(255 255 255 / 14%);
+  border-color: rgb(var(--glow) / 40%);
+  color: #fff;
+  /* Sin desplazamientos: el marco anima color y opacidad, no la retícula */
+  transform: none;
+  box-shadow: none;
+}
+
+html:root .radio-card.active,
+html:root .btn-season.active,
+html:root .capsula.active,
+html:root .indice-op.active {
+  background: rgb(11 107 184 / 88%);
+  border-color: rgb(var(--glow) / 62%);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 18%);
+}
+
+html:root .radio-card.active .radio-desc,
+html:root .indice-op.active .indice-cod { color: rgb(255 255 255 / 88%); }
+
+html:root .radio-card.active .radio-dot {
+  background: #fff;
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgb(var(--glow) / 34%);
+}
+
+html:root .radio-icon,
+html:root .ref-icon,
+html:root .indice-icono { border-radius: var(--radius-sm); }
+
+html:root .indice-panel { border-left-color: rgb(var(--glow) / 40%); }
+
+/* La brecha es el estado que manda cuando está encendido: se marca
+   con el navy cerrado, que ninguna de las rampas del dato ocupa */
+html:root .btn-comparar.active {
+  background: var(--navy-700);
+  border-color: rgb(var(--glow) / 62%);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 16%);
+}
+
+html:root .capsula-fondo {
+  border-radius: var(--radius-sm);
+  background: rgb(255 255 255 / 4%);
+  border-color: rgb(255 255 255 / 10%);
+}
+
+html:root .periodo-badge { border-radius: 999px; }
+
+/* Buscar por coordenadas: el rojo no pertenece al sistema, y aquí no
+   señala un peligro sino una acción corriente */
+html:root .btn-buscar {
+  background: var(--blue);
+  border-radius: var(--radius-sm);
+}
+html:root .btn-buscar:hover { background: var(--blue-600); }
+
+html:root .input-group input {
+  border-radius: var(--radius-sm);
+  border-color: rgb(255 255 255 / 16%);
+}
+html:root .input-group input:focus { border-color: rgb(var(--glow) / 70%); }
+
+/* =========================================================
+   7 · VIDRIO SOBRE EL MAPA
+   Lo que se apoya en el territorio deja pasar el fondo y suma un
+   filo de luz arriba; el saturate devuelve el color que el blur
+   se lleva. Solo lo elegido se vuelve sólido.
+   ========================================================= */
+html:root .map-zoom-ctrl button,
+html:root .map-legend,
+html:root .map-info-panel,
+html:root .info-popup .leaflet-popup-content-wrapper {
+  background: rgb(255 255 255 / 72%);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  border: 1px solid rgb(10 28 72 / 12%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%),
+              0 10px 34px rgb(10 28 72 / 14%);
+}
+
+html:root .map-zoom-ctrl button {
+  border-radius: 999px;
+  color: var(--navy);
+}
+
+html:root .map-zoom-ctrl button:hover {
+  background: rgb(255 255 255 / 88%);
+  border-color: rgb(var(--glow) / 70%);
+  color: var(--blue-600);
+}
+
+/* Lo elegido sobre el mapa: el par de la casa, navy y blanco */
+html:root .map-zoom-ctrl .btn-pantalla.active,
+html:root .map-zoom-ctrl .btn-relieve.active {
+  background: rgb(10 28 72 / 92%);
+  border-color: rgb(var(--glow) / 62%);
+  color: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 2px 10px rgb(10 28 72 / 30%);
+}
+
+html:root .map-legend,
+html:root .map-info-panel { border-radius: var(--radius); }
+
+/* La punta señala el territorio consultado: va del mismo vidrio que el
+   cuerpo del globo, o se lee como una pieza pegada debajo */
+html:root .leaflet-popup-tip {
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 3px 12px rgb(10 28 72 / 12%);
+}
+
+html:root .legend-title {
+  color: var(--navy);
+  /* La divisoria del título repite la rampa: la leyenda explica la
+     escala y la lleva encima */
+  border-bottom: 3px solid var(--line);
+  border-image: var(--filete) 1;
+}
+
+html:root .legend-ref-note {
+  color: var(--muted);
+  background: var(--accent);
+  border-left-color: var(--blue);
+  border-radius: 0 6px 6px 0;
+}
+
+html:root .legend-label { color: var(--ink); }
+html:root .legend-swatch { border-color: rgb(10 28 72 / 14%); }
+
+html:root .legend-toggle:hover {
+  background: var(--accent);
+  color: var(--blue-600);
+}
+
+/* Cabecera de la ficha: el par de la casa, sin degradado */
+html:root .info-panel-header,
+html:root .info-popup-head {
+  background: var(--navy);
+  color: #fff;
+}
+
+html:root .info-val { color: var(--ink); }
+html:root .info-key { color: var(--muted); }
+html:root .info-val.highlight { color: var(--navy); }
+html:root .info-contexto { color: var(--muted); }
+html:root .info-contexto strong { color: var(--blue-600); }
+
+html:root .info-interpret {
+  background: var(--accent);
+  border-left-color: var(--blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ink);
+}
+html:root .info-interpret strong { color: var(--blue-600); }
+
+html:root .info-value-bar-wrap {
+  background: var(--accent);
+  border-color: var(--line);
+  border-radius: var(--radius-sm);
+}
+
+html:root .ic-texto {
+  background: var(--accent);
+  border-left-color: var(--blue);
+  color: var(--ink);
+}
+html:root .ic-texto strong { color: var(--blue-600); }
+html:root .ic-lugar { color: var(--navy); }
+html:root .ic-ubica,
+html:root .ic-periodo { color: var(--muted); }
+
+/* La ficha comparada: el acento de cada escenario sale del sistema, no
+   de un azul suelto, y la caja de la brecha se apoya en el tono tenue */
+html:root .cmp-brecha {
+  background: var(--accent);
+  border-color: rgb(10 28 72 / 16%);
+  border-radius: var(--radius-sm);
+}
+
+html:root .cmp-brecha-rotulo { color: var(--navy); }
+html:root .cmp-brecha-txt { color: var(--muted); }
+html:root .cmp-tag { color: var(--navy); }
+html:root .cmp-nombre { color: var(--muted); }
+
+html:root .cmp-fila {
+  background: var(--accent);
+  border-left-color: var(--blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* El severo se distingue por el ámbar del sistema, el mismo de los avisos */
+html:root .cmp-fila.severa {
+  background: #fdf6e7;
+  border-left-color: #b8801f;
+}
+
+/* Cifras que cambian en el sitio: sin tabular-nums el texto tiembla
+   al actualizarse, porque el 1 es más estrecho que el 8 */
+html:root .info-val,
+html:root .ic-cifra,
+html:root .legend-label,
+html:root .info-value-bar-label,
+html:root .capsula-cod,
+html:root .periodo-badge,
+html:root .navbar-subtitle,
+html:root #footerEscenario { font-variant-numeric: tabular-nums; }
+
+/* =========================================================
+   8 · BUSCADOR
+   ========================================================= */
+html:root .map-search-float {
+  border-radius: var(--radius);
+  /* Se queda la entrada y se va el resplandor: lo que se repite sin fin
+     gasta batería y no dice nada */
+  animation: msfEntrance 0.55s cubic-bezier(0.2,0.75,0.3,1) 0.3s both;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%),
+              0 10px 34px rgb(10 28 72 / 16%);
+}
+
+/* Solo en pantalla amplia: en teléfono el buscador ocupa el ancho de la
+   pantalla, reserva sitio para el aspa de cerrar y su campo va a 16 px,
+   que es lo que evita que iOS haga zoom al enfocarlo. Estas reglas pesan
+   más que las suyas, así que no pueden quedar sueltas. */
+@media (min-width: 769px) {
+  /* El buscador ocupaba 288 px de mapa con una franja de rótulo, un icono
+     con latido y un campo de 38 px de alto. Se recorta a 232: la franja
+     pierde un tercio de su altura, el icono baja a 22 px y el rótulo cede
+     el sitio, que era el que más ancho pedía. El campo se queda como
+     estaba de alto —es lo que se toca— y solo pierde holgura a los lados. */
+  html:root .map-search-float { width: 232px; }
+
+  html:root .msf-topbar {
+    background: var(--navy);
+    padding: 6px 10px;
+    gap: 7px;
+    /* El degradado que se movía y el brillo que lo cruzaba eran dos
+       animaciones sin fin sobre una franja de rótulo */
+    animation: none;
+  }
+
+  html:root .msf-topbar::after { display: none; }
+
+  html:root .msf-topbar-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    animation: none;
+  }
+
+  html:root .msf-topbar-icon svg {
+    color: var(--eyebrow);
+    width: 12px;
+    height: 12px;
+  }
+
+  html:root .msf-topbar-title {
+    font-size: 0.6rem;
+    letter-spacing: 0.4px;
+  }
+
+  html:root .msf-topbar-sub { font-size: 0.56rem; }
+
+  html:root .msf-header {
+    padding: 0 10px;
+    gap: 7px;
+  }
+
+  html:root .msf-input { font-size: 0.78rem; }
+}
+
+html:root .place-suggestion-item:hover { background: var(--accent); }
+
+/* =========================================================
+   9 · ACCESIBILIDAD
+   Seis reglas que no cuestan nada puestas desde el principio.
+   ========================================================= */
+html:root :focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Sobre el cromo oscuro el azul de acción no se despega del fondo: allí el
+   foco se dibuja con el halo. En la barra no, que es blanca: el halo daría
+   2,2:1 y un indicador de foco necesita 3:1. Ahí manda el azul, con 5,5:1. */
+html:root .sidebar :focus-visible,
+html:root .footer :focus-visible {
+  outline-color: rgb(var(--glow) / 90%);
+}
+
+/* Nada baja de 44 px en lo que se toca */
+html:root .radio-card,
+html:root .capsula,
+html:root .btn-comparar,
+html:root .btn-buscar { min-height: 44px; }
+
+html:root .btn-season,
+html:root .indice-op { min-height: 34px; }
+
+/* =========================================================
+   10 · EL PANEL, DE VIDRIO
+   El panel se queda donde está —columna izquierda, hermana del
+   mapa— y toma el acabado: deja pasar el fondo, se aclara, y el
+   canto derecho lleva el filo de luz que es lo que hace que se
+   lea como vidrio y no como un azul rebajado.
+
+   Lo que se filtra en escritorio es el fondo de la página, no el
+   mapa: el panel no se apoya en él. Por eso las paradas no bajan
+   de 86 % —el rótulo de sección, que es el tono más claro sobre
+   el más abierto del degradado, se queda en 5:1— y por eso la
+   opacidad crece hacia abajo, donde el azul ya es más abierto.
+   ========================================================= */
+html:root .sidebar {
+  background: linear-gradient(180deg,
+              rgb(6 16 39 / 86%) 0%,
+              rgb(10 28 72 / 89%) 55%,
+              rgb(18 48 103 / 92%) 100%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 12%),
+              4px 0 22px rgb(2 8 22 / 16%);
+}
+
+/* Los controles no siguen al panel: sobre un fondo que deja pasar lo de
+   detrás, una tarjeta translúcida se disuelve. Llevan navy propio bajo el
+   blanco tenue, así que se leen sólidos aunque el panel no lo sea. */
+html:root .radio-card,
+html:root .btn-season,
+html:root .capsula,
+html:root .btn-comparar,
+html:root .capsula-fondo,
+html:root .input-group input {
+  background:
+    linear-gradient(rgb(255 255 255 / 7%), rgb(255 255 255 / 7%)),
+    rgb(9 24 62 / 72%);
+}
+
+html:root .radio-icon,
+html:root .ref-icon,
+html:root .indice-icono {
+  background:
+    linear-gradient(rgb(255 255 255 / 8%), rgb(255 255 255 / 8%)),
+    rgb(9 24 62 / 60%);
+}
+
+/* Lo elegido es lo único que no duda: opaco del todo */
+html:root .radio-card.active,
+html:root .btn-season.active,
+html:root .capsula.active {
+  background: rgb(11 107 184 / 96%);
+}
+
+html:root .btn-comparar.active { background: var(--navy-700); }
+
+/* En teléfono el panel sí flota sobre el territorio, con el velo del
+   overlay debajo: ahí el vidrio puede abrirse más y el mapa se adivina
+   moviéndose bajo los controles. Medido sobre lo más claro que el mapa
+   puede pintar —el amarillo del calor— el texto blanco queda en 13:1. */
+@media (max-width: 768px) {
+  html:root .sidebar {
+    background: linear-gradient(180deg,
+                rgb(6 16 39 / 80%) 0%,
+                rgb(10 28 72 / 78%) 55%,
+                rgb(18 48 103 / 78%) 100%);
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow: inset -1px 0 0 rgb(255 255 255 / 10%),
+                6px 0 28px rgb(2 8 22 / 42%);
+  }
+
+  /* El velo que cierra el resto de la pantalla estaba al 55 %: oscurecía
+     el mapa antes de que el panel pudiera enseñarlo, y el vidrio no tenía
+     nada que dejar pasar. Al 24 % llega el doble de territorio y el rótulo
+     de sección —el texto más justo del panel— se queda en 4,9:1.
+     El desenfoque sube a 4 px para que lo de fuera se lea como fondo. */
+  html:root .sidebar-overlay {
+    background: rgb(6 14 34 / 24%);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+}
+
+/* =========================================================
+   11 · LO QUE EL TELÉFONO NO CEDE
+   Las reglas de esta hoja pesan (0,2,1) y las de la hoja base, dentro
+   de sus @media, pesan (0,1,0): con el mismo peso ganaría la última
+   escrita, pero aquí gana siempre esta. Todo lo que el teléfono había
+   ganado por su cuenta —áreas táctiles, la ficha como hoja inferior,
+   la marca en apaisado— hay que devolverlo a mano, o el estilo se lo
+   lleva por delante sin que nadie lo note.
+   ========================================================= */
+@media (max-width: 768px) {
+  /* Lo que se toca con el dedo no encoge por venir de una regla de
+     escritorio: el mínimo del marco es 44 px y en el teléfono la base
+     ya daba más en varios. Se queda el mayor de los dos. */
+  html:root .radio-card   { min-height: 48px; }
+  html:root .btn-season   { min-height: 40px; }
+  html:root .btn-buscar   { min-height: 46px; }
+  html:root .btn-comparar { min-height: 44px; }
+  html:root .capsula      { min-height: 44px; }
+
+  /* La ficha del punto es una hoja que sube desde abajo, no una tarjeta
+     flotante: conserva las esquinas de arriba y la sombra hacia arriba */
+  html:root .map-info-panel {
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -6px 28px rgb(10 28 72 / 26%);
+  }
+
+  /* El buscador se despliega con su propia opacidad y su transform: una
+     animación de entrada encima pelearía con el gesto */
+  html:root .map-search-float { animation: none; }
+
+  html:root .info-value-bar-wrap { border-radius: 12px; }
+
+  /* La franja del rótulo también se compacta aquí, pero solo ella: el
+     hueco de 44 px que le deja al aspa de cerrar se conserva, el campo se
+     queda a su altura —es lo que se toca— y el texto sigue a 16 px, que es
+     lo que evita que iOS haga zoom al enfocarlo. */
+  html:root .msf-topbar {
+    padding: 5px 44px 5px 10px;
+    gap: 7px;
+    /* El degradado que se movía y el brillo que lo cruzaba eran dos
+       animaciones sin fin en la pantalla que va a batería */
+    animation: none;
+  }
+
+  html:root .msf-topbar::after { display: none; }
+
+  html:root .msf-topbar-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    animation: none;
+  }
+
+  html:root .msf-topbar-icon svg { width: 11px; height: 11px; }
+
+  html:root .msf-topbar-title {
+    font-size: 0.58rem;
+    letter-spacing: 0.4px;
+  }
+
+  html:root .msf-topbar-sub { font-size: 0.54rem; }
+}
+
+/* Sin ratón no hay hover que valga: el fondo se quedaría pegado después
+   de tocar la sugerencia, como si siguiera señalada */
+@media (hover: none) {
+  html:root .place-suggestion-item:hover { background: transparent; }
+  html:root .place-suggestion-item:active { background: var(--accent); }
+}
+
+/* Teléfono en apaisado: la barra baja a 46 px de alto y el nombre tiene
+   que caber dentro. La base ya lo resolvía y el clamp se lo saltaba. */
+@media (max-height: 480px) and (orientation: landscape) {
+  html:root .brand-name {
+    font-size: 1.25rem;
+    letter-spacing: 0.06em;
+    margin-right: -0.06em;
+  }
+}
+
+/* =========================================================
+   12 · RED DE SEGURIDAD
+   Atrapa cualquier animación que se escape del tema. No sustituye
+   a apagar a mano las que se repiten: esas necesitan además un
+   estado en reposo que se vea bien, y lo tienen arriba.
+   ========================================================= */
+@media (prefers-reduced-motion: reduce) {
+  html:root *,
+  html:root *::before,
+  html:root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.06s !important;
+  }
+}
