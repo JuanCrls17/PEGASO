@@ -792,7 +792,44 @@ html:root .btn-comparar.active { background: var(--navy-700); }
   }
 
   html:root .msf-topbar-sub { font-size: 0.54rem; }
+
+  /* El aspa mide 30 px y arranca a 8 del borde, o sea llega a 38: al
+     compactar la franja se salía por debajo y quedaba encima del campo.
+     Se centra en el alto real de la franja en vez de colgar de un número
+     fijo, y conserva sus 30 px, que es lo que se toca. */
+  html:root .msf-collapse {
+    top: 3px;
+    right: 6px;
+  }
+
+  /* El aspa cuelga del borde del bloque, no de la franja —son hermanas—,
+     así que la franja necesita un alto conocido para que quepa: 3 arriba
+     más sus 30 son 33, y con 36 sobran tres abajo. Sigue siendo más baja
+     que los 41 px que medía antes, y el aspa conserva su área táctil. */
+  html:root .msf-topbar {
+    padding: 6px 44px 6px 10px;
+    min-height: 36px;
+  }
+
+  /* La lista de sugerencias ocupaba casi media pantalla */
+  html:root .msf-suggestions { max-height: 34vh; }
 }
+
+/* El campo de búsqueda marcaba el foco con un recuadro azul de tres píxeles
+   —el del sistema— más su propia línea azul debajo. En un campo de texto el
+   cursor ya dice dónde se está escribiendo, así que se queda una sola señal,
+   la línea inferior, y en el navy de la casa en vez del azul suelto. */
+html:root .msf-input:focus-visible { outline: none; }
+
+html:root .msf-header { border-bottom-color: var(--line); }
+
+html:root .map-search-float:focus-within .msf-header {
+  border-bottom-color: var(--navy);
+  box-shadow: none;
+}
+
+html:root .map-search-float:focus-within .msf-search-icon { color: var(--navy); }
+html:root .msf-search-icon { color: var(--muted); }
 
 /* Sin ratón no hay hover que valga: el fondo se quedaría pegado después
    de tocar la sugerencia, como si siguiera señalada */
