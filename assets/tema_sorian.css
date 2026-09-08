@@ -331,6 +331,16 @@ html:root .indice-op {
 
 html:root .btn-season { border-radius: 999px; }
 
+/* Las dos cápsulas reparten el ancho a partes iguales, así que el código y
+   su nombre iban pegados arriba y a la izquierda, con el hueco a la derecha
+   y debajo. Centrados en los dos ejes, cada uno ocupa su mitad. */
+html:root .capsula {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 8px;
+}
+
 html:root .radio-card:hover,
 html:root .btn-season:hover,
 html:root .capsula:hover,
