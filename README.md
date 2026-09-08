@@ -85,6 +85,23 @@ cercana para los 85 distritos demasiado pequeños para contener una.
 
 Capas de referencia: departamentos (25), provincias (196) y cuencas (231 unidades hidrográficas).
 
+## Cómo está organizado
+
+Sin compilación ni dependencias: módulos ES que el navegador carga directamente.
+
+```
+index.html
+assets/
+  app.js          el mapa, la ficha del territorio y los controles
+  escalas.js      de un número a un color y a una cifra
+  geometria.js    polígonos, puntos y posiciones dentro de un grupo
+  datos.js        rutas y carga de los archivos, con su caché
+```
+
+Los tres módulos de abajo son cálculo puro: no tocan el mapa, ni el DOM, ni
+el estado. Eso los deja probables por separado y hace que un cambio de
+paleta o de formato de cifra no obligue a abrir la lógica de la interfaz.
+
 ## Funcionalidades
 
 - Mapa coroplético por distrito (1891 distritos) con leyenda dinámica plegable

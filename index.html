@@ -460,8 +460,10 @@
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
           crossorigin="anonymous"></script>
 
-  <!-- Lógica principal -->
-  <script src="assets/app.js?v=16"></script>
+  <!-- Lógica principal. Como módulo: app.js importa escalas.js, geometria.js
+       y datos.js, y nada queda colgando del ámbito global. Los módulos se
+       aplazan solos hasta que el documento está armado. -->
+  <script type="module" src="assets/app.js?v=17"></script>
 
 </body>
 </html>
