@@ -214,10 +214,7 @@ html:root .footer::before {
   left: 0;
   right: 0;
   height: 3px;
-  /* app.js escribe el reparto en cuanto el mapa termina de pintar: cada
-     tramo ocupa el ancho de los distritos que caen en él. Mientras no lo
-     hay —al abrir, o si falla la carga— queda la rampa entera. */
-  background: var(--filete-reparto, var(--filete));
+  background: var(--filete);
   z-index: 2;
   pointer-events: none;
 }
@@ -225,16 +222,41 @@ html:root .footer::before {
 html:root .navbar::before { bottom: 0; }
 html:root .footer::before { top: 0; }
 
-/* Un degradado no interpola entre dos repartos, así que el nuevo entra
-   barriendo de izquierda a derecha, a la vez que el mapa se repinta.
-   Dos clases con la misma animación: alternarlas es lo que la relanza. */
+/* En cuanto el mapa termina de pintar, app.js escribe el reparto: cada
+   tramo ocupa el ancho de los distritos que caen en él. Va repetido y al
+   doble de ancho, y se desliza un ancho entero cada 40 s: la franja fluye
+   sin costura y el reparto se sigue leyendo. Un degradado no interpola
+   entre dos repartos, así que el nuevo entra además barriendo de
+   izquierda a derecha. Dos clases con la misma animación: alternarlas es
+   lo que la relanza. */
 html:root.filete-a .navbar::before,
-html:root.filete-a .footer::before { animation: fileteBarreA 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+html:root.filete-a .footer::before,
 html:root.filete-b .navbar::before,
-html:root.filete-b .footer::before { animation: fileteBarreB 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
+html:root.filete-b .footer::before {
+  background: var(--filete-flujo, var(--filete));
+  background-size: 200% 100%;
+}
+
+html:root.filete-a .navbar::before,
+html:root.filete-a .footer::before {
+  animation: fileteBarreA 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+             fileteFluye 40s linear infinite;
+}
+
+html:root.filete-b .navbar::before,
+html:root.filete-b .footer::before {
+  animation: fileteBarreB 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+             fileteFluye 40s linear infinite;
+}
+
+/* El pie fluye al revés que la cabecera: las dos franjas enmarcan el
+   mapa como una sola cinta que da la vuelta */
+html:root.filete-a .footer::before,
+html:root.filete-b .footer::before { animation-direction: normal, reverse; }
 
 @keyframes fileteBarreA { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
 @keyframes fileteBarreB { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@keyframes fileteFluye  { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   html:root.filete-a .navbar::before, html:root.filete-a .footer::before,

@@ -10,13 +10,13 @@
 
 import {
   cargarValores, distritosComparados, distritosConValores, distritosDesdeValores, fetchGeoJSON, imcFilename, refFilename
-} from "./datos.js?v=19";
+} from "./datos.js?v=20";
 import {
   ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, gradienteRepartido, imcBarConfig, imcLabel, signo, unidadDe
-} from "./escalas.js?v=19";
+} from "./escalas.js?v=20";
 import {
   posicionEnGrupo, puntoEnGeometria, puntoRepresentativo
-} from "./geometria.js?v=19";
+} from "./geometria.js?v=20";
 
 
 // ─── Estado de la aplicación ──────────────────────────────
@@ -98,17 +98,41 @@ function compensacionRelieve() {
   return enRelieve() ? 1 : 0;
 }
 
+// En pantalla amplia la cabecera, el panel y el pie flotan sobre el mapa:
+// lo que tapan no es territorio visible. Se mide con offset* y no con
+// getBoundingClientRect porque las tres piezas entran con un desplazamiento
+// animado, y a mitad de la entrada el rectángulo aún no está en su sitio.
+function zonaCubierta() {
+  const libre = { arriba: 0, izq: 0, abajo: 0 };
+  if (window.innerWidth <= 768) return libre;
+  const c = mapContainer.getBoundingClientRect();
+  const pieza = sel => {
+    const el = document.querySelector(sel);
+    return el && getComputedStyle(el).display !== "none" ? el : null;
+  };
+  const nav = pieza(".navbar"), panel = pieza(".sidebar"), pie = pieza(".footer");
+  if (nav)   libre.arriba = Math.max(0, nav.offsetTop + nav.offsetHeight - c.top);
+  if (panel) libre.izq    = Math.max(0, panel.offsetLeft + panel.offsetWidth - c.left);
+  if (pie)   libre.abajo  = Math.max(0, c.bottom - pie.offsetTop);
+  return libre;
+}
+
 function ajustarAmbito(reencuadrar) {
   map.invalidateSize({ animate: false });
 
   map.setMaxBounds(null);                       // se liberan los límites para medir
   const margen = window.innerWidth <= 768 ? 14 : 26;
+  const cubierta = zonaCubierta();
+  const arribaIzq = L.point(margen + cubierta.izq, margen + cubierta.arriba);
+  const abajoDer  = L.point(margen, margen + cubierta.abajo);
   const compensa = compensacionRelieve();
-  const zMin = map.getBoundsZoom(PERU_BOUNDS, false, [margen, margen]) - compensa - 0.5;
+  const zMin = map.getBoundsZoom(PERU_BOUNDS, false, arribaIzq.add(abajoDer)) - compensa - 0.5;
 
   map.setMinZoom(zMin);
   if (reencuadrar || map.getZoom() < zMin) {
-    map.fitBounds(PERU_BOUNDS, { padding: [margen, margen], animate: false });
+    map.fitBounds(PERU_BOUNDS, {
+      paddingTopLeft: arribaIzq, paddingBottomRight: abajoDer, animate: false,
+    });
     if (compensa) map.setZoom(map.getZoom() - compensa, { animate: false });
   }
 
@@ -654,7 +678,9 @@ function margenesLibres() {
   const visible = el => el && el.offsetParent !== null &&
                         getComputedStyle(el).visibility !== "hidden";
 
-  let izq = 24, arriba = 24, der = 24, abajo = 24;
+  const cubierta = zonaCubierta();
+  let izq = 24 + cubierta.izq, arriba = 24 + cubierta.arriba,
+      der = 24, abajo = 24 + cubierta.abajo;
 
   const buscador = document.getElementById("mapSearchFloat");
   if (visible(buscador)) {
@@ -1077,14 +1103,19 @@ function pintarFilete(clave, esImc, compara) {
 }
 
 // La cabecera y el pie no repiten la rampa: enseñan cómo se reparte el
-// país entre sus tramos. El barrido de entrada se reinicia alternando dos
-// clases con la misma animación —quitar y poner la misma no la relanza.
+// país entre sus tramos, y el reparto fluye despacio a lo largo de la
+// franja. El barrido de entrada se reinicia alternando dos clases con la
+// misma animación —quitar y poner la misma no la relanza.
 let fileteBarrido = false;
 
 function pintarReparto(colores, pintados) {
   const raiz = document.documentElement;
-  if (!pintados) { raiz.style.removeProperty("--filete-reparto"); return; }
-  raiz.style.setProperty("--filete-reparto", gradienteRepartido(colores, pintados));
+  if (!pintados) {
+    raiz.style.removeProperty("--filete-flujo");
+    raiz.classList.remove("filete-a", "filete-b");
+    return;
+  }
+  raiz.style.setProperty("--filete-flujo", gradienteRepartido(colores, pintados, true));
   fileteBarrido = !fileteBarrido;
   raiz.classList.toggle("filete-a", fileteBarrido);
   raiz.classList.toggle("filete-b", !fileteBarrido);

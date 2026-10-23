@@ -1,0 +1,155 @@
+/* =========================================================
+   PEGASO — El cromo flotante
+   Se carga la última. La cabecera, el panel y el pie dejan de ser
+   franjas que encierran el mapa y pasan a ser cristales que flotan
+   sobre él: el territorio llega hasta el borde de la ventana y se
+   adivina, desenfocado, detrás de cada pieza.
+
+   Es el mismo vidrio que ya llevaban la leyenda y la ficha, un punto
+   más abierto: blanco al 58 % con desenfoque y saturación, un filo
+   blanco que lo recorta y un anillo navy muy tenue que lo separa del
+   mapa cuando el mapa también es claro.
+
+   Las piezas guardan 12 px con el borde de la ventana y 10 px entre
+   ellas. Esas medidas, y lo que cada pieza tapa del mapa, viven en
+   tres variables —--libre-arriba, --libre-izq, --libre-abajo— que
+   usan también los flotantes del mapa para colocarse donde empieza
+   el territorio visible. app.js mide lo mismo para encuadrar el Perú.
+
+   Las reglas pesan (0,2,2) con «html:root body»: ganan a las de
+   tema_sorian.css y panel_controles.css sin !important.
+   ========================================================= */
+
+:root {
+  --vidrio:        rgb(255 255 255 / 58%);
+  --vidrio-filo:   rgb(255 255 255 / 65%);
+  --vidrio-anillo: rgb(10 28 72 / 8%);
+  --vidrio-sombra: 0 10px 34px rgb(10 28 72 / 13%), 0 2px 6px rgb(10 28 72 / 6%);
+  --vidrio-blur:   blur(24px) saturate(180%);
+}
+
+/* ── El vidrio, en todas las pantallas ─────────────────── */
+html:root body .navbar,
+html:root body .footer {
+  background: var(--vidrio);
+  backdrop-filter: var(--vidrio-blur);
+  -webkit-backdrop-filter: var(--vidrio-blur);
+}
+
+html:root body .footer { overflow: hidden; }
+
+html:root body .footer-left,
+html:root body .footer-right { color: #3f5068; }
+
+html:root body .footer-attr,
+html:root body .footer-scm { color: #5a6a80; }
+
+/* La firma respiraba con un halo azul pensado para el pie oscuro;
+   sobre el cristal claro basta el navy de la marca */
+html:root body .footer-firma {
+  color: var(--navy);
+  animation: none;
+}
+
+html:root body .footer :focus-visible { outline-color: var(--blue); }
+
+/* Lo que ya flotaba sobre el mapa se abre un punto, para que las
+   cinco piezas sean el mismo vidrio */
+html:root body .map-legend,
+html:root body .map-info-panel,
+html:root body .map-zoom-ctrl button:not(.active),
+html:root body .info-popup .leaflet-popup-content-wrapper {
+  background: rgb(255 255 255 / 62%);
+  backdrop-filter: var(--vidrio-blur);
+  -webkit-backdrop-filter: var(--vidrio-blur);
+}
+
+/* =========================================================
+   PANTALLA AMPLIA: LAS TRES PIEZAS FLOTAN
+   En teléfono el panel ya entra deslizando sobre el mapa y la
+   cabecera necesita todo el ancho: allí se quedan como estaban.
+   ========================================================= */
+@media (min-width: 769px) {
+  :root {
+    --flota: 12px;
+    --hueco: 10px;
+    --libre-arriba: calc(var(--flota) + var(--navbar-h) + var(--hueco));
+    --libre-abajo:  calc(var(--flota) + var(--footer-h) + var(--hueco));
+    --libre-izq:    calc(var(--flota) + var(--sidebar-w) + var(--hueco));
+  }
+
+  /* En inmersivo la cabecera y el pie se retiran y el panel sube */
+  body.inmersivo {
+    --libre-arriba: var(--flota);
+    --libre-abajo:  var(--flota);
+  }
+
+  /* El mapa ocupa la ventana entera */
+  html:root body .layout {
+    margin-top: 0;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  html:root body .navbar,
+  html:root body .footer,
+  html:root body .sidebar {
+    border: 1px solid var(--vidrio-filo);
+    box-shadow: 0 0 0 1px var(--vidrio-anillo), var(--vidrio-sombra);
+  }
+
+  html:root body .navbar {
+    top: var(--flota);
+    left: var(--flota);
+    right: var(--flota);
+    border-radius: 16px;
+  }
+
+  html:root body .footer {
+    bottom: var(--flota);
+    left: var(--flota);
+    right: var(--flota);
+    border-radius: 12px;
+  }
+
+  html:root body .sidebar {
+    position: fixed;
+    top: var(--libre-arriba);
+    bottom: var(--libre-abajo);
+    left: var(--flota);
+    width: var(--sidebar-w);
+    min-width: 0;
+    height: auto;
+    z-index: 1000;
+    border-radius: 16px;
+  }
+
+  /* Los flotantes del mapa arrancan donde termina el cromo */
+  html:root body .map-search-float {
+    top: var(--libre-arriba);
+    left: var(--libre-izq);
+  }
+
+  html:root body .map-info-panel { left: var(--libre-izq); }
+
+  html:root body .map-zoom-ctrl {
+    top: var(--libre-arriba);
+    right: var(--flota);
+  }
+
+  html:root body .map-legend {
+    bottom: var(--libre-abajo);
+    right: var(--flota);
+  }
+
+  /* El aviso de carga se centra en el territorio visible, no en la
+     ventana: el velo cubre todo, el mensaje queda en el hueco */
+  html:root body .map-loader {
+    padding: var(--libre-arriba) var(--flota) var(--libre-abajo) var(--libre-izq);
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html:root body .navbar,
+  html:root body .footer { background: rgb(250 252 254 / 96%); }
+}

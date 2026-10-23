@@ -326,7 +326,10 @@ export function gradienteDe(colores) {
 // cuánto del país está pintado de ese color, y cambia con la variable, la
 // estación y el escenario. Los colores que no son de la rampa —el gris de
 // los distritos sin dato— no entran en la cuenta.
-export function gradienteRepartido(colores, pintados) {
+// Con «repetido» el reparto ocupa medio degradado y se repite: pintado al
+// doble de ancho, deslizarlo un ancho entero lo deja como estaba, y la
+// franja puede fluir sin costura.
+export function gradienteRepartido(colores, pintados, repetido = false) {
   const cuenta = new Map(colores.map(c => [c, 0]));
   let total = 0;
   for (const c of pintados) {
@@ -336,14 +339,15 @@ export function gradienteRepartido(colores, pintados) {
   }
   if (!total) return gradienteDe(colores);
 
+  const escala = repetido ? 50 : 100;
   let acumulado = 0;
   const paradas = [];
   for (const c of colores) {
     const n = cuenta.get(c);
     if (!n) continue;
-    const desde = acumulado / total * 100;
+    const desde = acumulado / total * escala;
     acumulado += n;
-    paradas.push(`${c} ${desde.toFixed(2)}% ${(acumulado / total * 100).toFixed(2)}%`);
+    paradas.push(`${c} ${desde.toFixed(2)}% ${(acumulado / total * escala).toFixed(2)}%`);
   }
-  return `linear-gradient(90deg, ${paradas.join(", ")})`;
+  return `${repetido ? "repeating-" : ""}linear-gradient(90deg, ${paradas.join(", ")})`;
 }
