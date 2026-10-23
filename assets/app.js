@@ -10,13 +10,13 @@
 
 import {
   cargarValores, distritosComparados, distritosConValores, distritosDesdeValores, fetchGeoJSON, imcFilename, refFilename
-} from "./datos.js?v=21";
+} from "./datos.js?v=22";
 import {
   ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, gradienteRepartido, imcBarConfig, imcLabel, signo, unidadDe
-} from "./escalas.js?v=21";
+} from "./escalas.js?v=22";
 import {
   posicionEnGrupo, puntoEnGeometria, puntoRepresentativo
-} from "./geometria.js?v=21";
+} from "./geometria.js?v=22";
 
 
 // ─── Estado de la aplicación ──────────────────────────────
@@ -672,38 +672,6 @@ function construirInfoHTML(props, variable, isImc, punto) {
 }
 
 
-// Márgenes que el globo debe respetar para no quedar bajo los flotantes.
-function margenesLibres() {
-  const cont = mapContainer.getBoundingClientRect();
-  const visible = el => el && el.offsetParent !== null &&
-                        getComputedStyle(el).visibility !== "hidden";
-
-  const cubierta = zonaCubierta();
-  let izq = 24 + cubierta.izq, arriba = 24 + cubierta.arriba,
-      der = 24, abajo = 24 + cubierta.abajo;
-
-  const buscador = document.getElementById("mapSearchFloat");
-  if (visible(buscador)) {
-    const r = buscador.getBoundingClientRect();
-    izq = Math.max(izq, r.right - cont.left + 18);
-  }
-
-  const leyenda = document.getElementById("mapLegend");
-  if (visible(leyenda)) {
-    const r = leyenda.getBoundingClientRect();
-    der = Math.max(der, cont.right - r.left + 18);
-  }
-
-  const zoom = document.getElementById("zoomCtrl");
-  if (visible(zoom)) {
-    const r = zoom.getBoundingClientRect();
-    der = Math.max(der, cont.right - r.left + 18);
-  }
-
-  return { topLeft: [izq, arriba + 40], bottomRight: [der, abajo] };
-}
-
-
 // Versión compacta para teléfono: destaca el valor y resume el resto.
 function construirInfoCompacto(props, variable, isImc, punto) {
   const distrito = conTildes(props.DISTRITO || props.NOMBRE) || "—";
@@ -940,7 +908,6 @@ function mostrarInfo(props) {
 
   if (anclado) {
     document.getElementById("infoPanel").style.display = "none";
-    const libre = margenesLibres();
     const abierto = infoPopup;
     infoPopup = null;
     if (abierto) map.closePopup(abierto);
@@ -948,9 +915,10 @@ function mostrarInfo(props) {
       className: comparaAhora() ? "info-popup peek comparando" : "info-popup peek",
       maxWidth: 340,
       minWidth: 270,
-      autoPan: true,
-      autoPanPaddingTopLeft: libre.topLeft,
-      autoPanPaddingBottomRight: libre.bottomRight,
+      // El desplazamiento lo hace asegurarFichaVisible: el de Leaflet no
+      // sabe que hay cromo flotando encima, y además lo frena el límite
+      // de navegación cuando el mapa está alejado
+      autoPan: false,
       closeButton: true,
       offset: [0, -4],
     })
@@ -958,6 +926,7 @@ function mostrarInfo(props) {
       .setContent(`<div class="info-popup-head">Información del punto</div>
                    <div class="info-popup-body">${html}</div>`)
       .openOn(map);
+    asegurarFichaVisible();
     setTimeout(() => {
       const globo = document.querySelector(".info-popup");
       if (!globo) return;
@@ -998,6 +967,49 @@ function mostrarInfo(props) {
       manija.setAttribute("aria-label", extendida ? "Reducir la ficha" : "Extender la ficha");
     });
   }
+}
+
+// La ficha nunca queda bajo una pieza flotante. Se mide el globo entero
+// —cuerpo y punta— contra el hueco que dejan la cabecera, el panel, el pie
+// y los botones de zoom, y el mapa se desplaza lo justo para que quepa. El
+// límite de navegación se suelta durante ese desplazamiento: con el mapa
+// alejado, bajar el globo obliga a mirar más al norte de lo que permite, y
+// es justo ahí donde quedaba tapado. Al terminar se vuelve a poner.
+const HOLGURA_FICHA = 14;
+
+function asegurarFichaVisible() {
+  const globo = infoPopup && infoPopup.getElement();
+  if (!globo) return;
+  // El contenedor de fuera no lleva la animación de entrada —la lleva el
+  // cuerpo, que crece desde el 90 %—, así que ya mide lo que medirá
+  const g = globo.getBoundingClientRect();
+  const c = mapContainer.getBoundingClientRect();
+  const cubierta = zonaCubierta();
+
+  let der = c.right - HOLGURA_FICHA;
+  const zoom = document.getElementById("zoomCtrl");
+  if (zoom && zoom.offsetParent !== null) der = zoom.getBoundingClientRect().left - HOLGURA_FICHA;
+
+  const libre = {
+    arriba: c.top + cubierta.arriba + HOLGURA_FICHA,
+    abajo:  c.bottom - cubierta.abajo - HOLGURA_FICHA,
+    izq:    c.left + cubierta.izq + HOLGURA_FICHA,
+    der,
+  };
+
+  // Si no cabe de alto, manda la cabecera: se lee de arriba abajo
+  let dy = 0;
+  if (g.top < libre.arriba) dy = g.top - libre.arriba;
+  else if (g.bottom > libre.abajo) dy = Math.max(g.bottom - libre.abajo, g.top - libre.arriba);
+
+  let dx = 0;
+  if (g.left < libre.izq) dx = g.left - libre.izq;
+  else if (g.right > libre.der) dx = Math.max(g.right - libre.der, g.left - libre.izq);
+
+  if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+  map.setMaxBounds(null);
+  map.once("moveend", aplicarLimitesNavegacion);
+  map.panBy([Math.round(dx), Math.round(dy)], { animate: true, duration: 0.35 });
 }
 
 // Ante un solape, la leyenda se pliega: la información nunca queda tapada.
@@ -1456,7 +1468,6 @@ function placeSearchMarker(lat, lon, label) {
   searchMarker = L.marker([lat, lon], { icon })
     .addTo(map)
     .bindTooltip(label || `${lat.toFixed(5)}, ${lon.toFixed(5)}`, { permanent: false });
-  map.setView([lat, lon], 11, { animate: true });
 }
 
 // ─── Buscador de lugares (Nominatim) ─────────────────────
@@ -1636,10 +1647,47 @@ window.addEventListener("scroll", removeVarTooltip, true);
 
 // ─── Resaltar distrito desde el buscador ──────────────────
 // Si el punto no cae en ningún distrito se toma el de centro más próximo.
+// Llegar a un lugar buscado es llegar a su distrito: el mapa vuela hasta
+// encuadrarlo entero en el hueco que deja el cromo, y en pantalla amplia
+// le reserva encima el sitio de la ficha, que se abre al aterrizar —abrirla
+// en pleno vuelo la colocaba con posiciones que ya no eran las del mapa—.
+// En teléfono la ficha es una hoja que sube desde abajo: el sitio se
+// reserva abajo.
+let vueloPendiente = null;
+
+function volarAlDistrito(unidad, punto) {
+  if (vueloPendiente) { map.off("moveend", vueloPendiente); vueloPendiente = null; }
+  cerrarInfo();
+
+  const cubierta = zonaCubierta();
+  const ancho = mapContainer.clientWidth  - cubierta.izq;
+  const alto  = mapContainer.clientHeight - cubierta.arriba - cubierta.abajo;
+  const telefono = window.innerWidth <= 768;
+  const ficha = Math.round(alto * (telefono ? 0.42 : 0.46));
+  const lado  = Math.round(Math.min(64, ancho * 0.08));
+
+  const arribaIzq = telefono
+    ? L.point(16, 16)
+    : L.point(cubierta.izq + lado, cubierta.arriba + Math.min(ficha, 400));
+  const abajoDer = telefono
+    ? L.point(16, cubierta.abajo + ficha)
+    : L.point(lado + 48, cubierta.abajo + 28);
+
+  vueloPendiente = () => { vueloPendiente = null; consultarUnidad(unidad, punto); };
+  map.setMaxBounds(null);
+  map.once("moveend", vueloPendiente);
+  map.flyToBounds(unidad.getBounds(), {
+    paddingTopLeft: arribaIzq,
+    paddingBottomRight: abajoDer,
+    maxZoom: 13,
+    duration: 0.9,
+  });
+}
+
 function highlightDistrictAt(lat, lon) {
-  const capa = capaActiva();
-  if (!capa) return;
   const punto = L.latLng(lat, lon);
+  const capa = capaActiva();
+  if (!capa) { map.setView(punto, 11, { animate: true }); return; }
 
   let unidad = localizarUnidad(capa, punto);
   if (!unidad) {
@@ -1651,7 +1699,8 @@ function highlightDistrictAt(lat, lon) {
       if (d < menor) { menor = d; unidad = l; }
     });
   }
-  if (unidad) consultarUnidad(unidad, punto);
+  if (unidad) volarAlDistrito(unidad, punto);
+  else map.setView(punto, 11, { animate: true });
 }
 
 /* =========================================================
