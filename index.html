@@ -35,6 +35,9 @@
   <!-- El estilo SORIΛN, que es ya el de la casa: va después porque
        matiza la hoja de arriba, no la sustituye -->
   <link rel="stylesheet" href="assets/tema_sorian.css?v=13" />
+  <!-- El panel de controles, de vidrio pulido: va el último porque solo
+       retoca la barra lateral, sobre lo que ya fijaron las dos de arriba -->
+  <link rel="stylesheet" href="assets/panel_vidrio.css?v=1" />
 </head>
 <body>
 
@@ -85,7 +88,7 @@
       <!-- Sección: los dos escenarios climáticos y su brecha. La sección se
            llama por lo que el mapa pinta —el clima que resulta—, y la bajada
            dice por dónde se eligen: su trayectoria de emisiones. -->
-      <div class="sidebar-section">
+      <div class="sidebar-section paso">
         <div class="section-label">Escenarios climáticos</div>
         <div class="section-sublabel">Según su trayectoria de emisiones</div>
         <div class="escenario-capsulas" id="escenarioGroup">
@@ -113,12 +116,13 @@
         <div class="escenario-nota escenario-aviso" id="escenarioBlockedMsg" hidden>
           El Índice Multipeligro solo está calculado para el escenario severo.
         </div>
-        <div class="escenario-nota">2036–2065 respecto a 1981–2010 · ensamble de tres modelos CMIP6</div>
+        <!-- El período y el ensamble se leen una sola vez, en la ficha del pie del panel -->
       </div>
 
       <!-- Sección: Capa de datos — variables medidas e índices derivados -->
-      <div class="sidebar-section">
+      <div class="sidebar-section paso">
         <div class="section-label">Capa de datos</div>
+        <div class="section-sublabel">Lo que se pinta sobre el mapa</div>
         <div class="radio-group" id="varGroup">
           <div class="group-sublabel">Variables climáticas</div>
           <label class="radio-card active" data-value="pr">
@@ -225,8 +229,9 @@
       </div>
 
       <!-- Sección: Período de tiempo -->
-      <div class="sidebar-section">
+      <div class="sidebar-section paso">
         <div class="section-label">Período de tiempo</div>
+        <div class="section-sublabel">Promedio del año o de una estación</div>
         <div class="btn-group" id="seasonGroup">
           <button class="btn-season active" data-value="anual"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3.3" width="12" height="11" rx="1.6"/><path d="M2 6.7h12M5.4 1.7v3M10.6 1.7v3"/><path d="M5 9.6h.01M8 9.6h.01M11 9.6h.01M5 12h.01M8 12h.01M11 12h.01" stroke-width="1.7"/></svg><span>Anual</span></button>
           <button class="btn-season" data-value="DEF"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="3.1"/><path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"/></svg><span>Verano</span></button>
@@ -234,14 +239,15 @@
           <button class="btn-season" data-value="JJA"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8v12.4M2.6 4.9l10.8 6.2M13.4 4.9L2.6 11.1"/><path d="M6.5 3.3 8 1.8l1.5 1.5M6.5 12.7 8 14.2l1.5-1.5"/><path d="M2.6 6.9V4.9h2M13.4 9.1v2h-2M13.4 6.9V4.9h-2M2.6 9.1v2h2"/></svg><span>Invierno</span></button>
           <button class="btn-season" data-value="SON"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 14.4V7.2"/><path d="M8 7.2C8 4.9 6.3 3 4 2.7c-.3 2.3 1.2 4.3 4 4.5z"/><path d="M8 8.6c0-2.2 1.6-4 3.9-4.3.3 2.3-1.2 4.2-3.9 4.3z"/></svg><span>Primavera</span></button>
         </div>
-        <div id="seasonBlockedMsg" style="display:none; margin-top:6px; font-size:0.68rem; color:rgba(255,255,255,0.45); font-style:italic;">
+        <div id="seasonBlockedMsg" class="panel-aviso" style="display:none;">
           El IMC solo está disponible para el período Anual.
         </div>
       </div>
 
       <!-- Sección: Capas de referencia (radio exclusivo) -->
-      <div class="sidebar-section">
+      <div class="sidebar-section paso">
         <div class="section-label">Capa de referencia</div>
+        <div class="section-sublabel">Límites que se dibujan encima</div>
         <div class="radio-group" id="refLayerGroup">
           <label class="radio-card active" data-value="departamentos">
             <span class="radio-dot"></span>
@@ -302,11 +308,12 @@
       </div>
 
       <!-- Sección: Buscar coordenadas (colapsable) -->
-      <div class="sidebar-section">
-        <div class="coord-toggle" id="coordToggle">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-          Buscar por coordenadas exactas
-        </div>
+      <div class="sidebar-section herramienta">
+        <button type="button" class="coord-toggle" id="coordToggle" aria-expanded="false" aria-controls="coordPanel">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          <span class="coord-toggle-texto">Buscar por coordenadas exactas</span>
+          <svg class="coord-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
         <div class="coord-panel" id="coordPanel" style="display:none;">
           <div class="coord-inputs">
             <div class="input-group">
@@ -328,10 +335,10 @@
       </div>
 
       <!-- Sección: Periodo -->
-      <div class="sidebar-section">
+      <div class="sidebar-section meta">
         <div class="section-label">Período de proyección</div>
         <div class="periodo-badge">2036–2065 <span>·</span> CMIP6</div>
-        <div class="ref-period-note">Cambio proyectado respecto al período de referencia 1981–2010</div>
+        <div class="ref-period-note">Cambio proyectado respecto al período de referencia 1981–2010 · ensamble de tres modelos CMIP6</div>
       </div>
 
     </aside>
@@ -463,7 +470,7 @@
   <!-- Lógica principal. Como módulo: app.js importa escalas.js, geometria.js
        y datos.js, y nada queda colgando del ámbito global. Los módulos se
        aplazan solos hasta que el documento está armado. -->
-  <script type="module" src="assets/app.js?v=17"></script>
+  <script type="module" src="assets/app.js?v=18"></script>
 
 </body>
 </html>

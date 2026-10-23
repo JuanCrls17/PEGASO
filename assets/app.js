@@ -1505,9 +1505,13 @@ document.addEventListener("click", e => {
 });
 
 // ─── Toggle panel coordenadas ─────────────────────────────
-document.getElementById("coordToggle").addEventListener("click", () => {
+document.getElementById("coordToggle").addEventListener("click", e => {
   const panel = document.getElementById("coordPanel");
-  panel.style.display = panel.style.display === "none" ? "block" : "none";
+  const abrir = panel.style.display === "none";
+  panel.style.display = abrir ? "block" : "none";
+  // El chevrón del rótulo gira con este atributo: el estado se lee igual
+  // con la vista que con un lector de pantalla
+  e.currentTarget.setAttribute("aria-expanded", String(abrir));
 });
 
 // ─── Búsqueda por coordenadas ─────────────────────────────
