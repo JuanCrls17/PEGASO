@@ -1,0 +1,728 @@
+/* =========================================================
+   PEGASO — El panel de controles
+   Se carga después de tema_sorian.css y solo toca la barra lateral.
+
+   La idea: vidrio, pero vidrio de instrumento y no de escaparate.
+   Una lámina navy translúcida que desenfoca lo de detrás, y encima
+   cada sección como un cristal fino: se distingue por un filo y una
+   veladura, no por halos ni reflejos pintados. Lo que ordena la
+   lectura es la tipografía y el espacio, no el brillo.
+
+   Tres decisiones que se repiten en todo el panel:
+   · Radios concéntricos: 10 px el cristal de cada sección, 7 px lo
+     que se toca dentro y 5 px la posición del selector, que va dentro
+     de un riel. Cada pieza redondea menos que la que la contiene, que
+     es lo que hace que las esquinas se lean como una familia.
+   · Sin luces de colores. El vidrio es monocromo —blanco sobre
+     navy a distinta opacidad— y el color queda para lo que significa
+     algo: el acento de lo elegido y los dos tonos de los escenarios.
+   · Lo elegido lleva el celeste del acento en el canto —a la
+     izquierda en las listas, abajo en las estaciones— y un velo del
+     mismo tono. El escenario, que es un selector de dos posiciones,
+     sube la posición elegida a un cristal blanco opaco.
+
+   Todas las reglas cuelgan de «html:root .sidebar» y pesan (0,3,1):
+   ganan a las de tema_sorian.css (0,2,1) sin necesidad de !important.
+   ========================================================= */
+
+html:root .sidebar {
+  --p-fondo:       rgb(9 25 62 / 90%);
+  --p-cristal:     rgb(255 255 255 / 4%);
+  --p-cristal-filo: rgb(255 255 255 / 9%);
+  --p-filete:      rgb(255 255 255 / 8%);
+  --p-borde:       rgb(255 255 255 / 12%);
+  --p-borde-hov:   rgb(255 255 255 / 24%);
+  --p-control:     rgb(255 255 255 / 3%);
+  --p-control-hov: rgb(255 255 255 / 6.5%);
+  --p-hundido:     rgb(2 8 22 / 30%);
+  --p-acento:      #7cb8ee;
+  --p-velo:        rgb(124 184 238 / 13%);
+  --p-borde-sel:   rgb(124 184 238 / 50%);
+  --p-texto:       #f3f7fb;
+  --p-texto-2:     #b3c5da;
+  --p-texto-3:     #8aa1bd;
+  --p-moderado:    #6fb6f0;
+  --p-severo:      #e6a740;
+  --p-radio:       7px;
+  --p-radio-cristal: 10px;
+
+  counter-reset: paso;
+  padding: 10px 10px 14px;
+  border-right: 1px solid rgb(255 255 255 / 7%);
+  /* Un solo velo, apenas más claro abajo: la lámina tiene cuerpo sin
+     que se vea de dónde viene la luz */
+  background: linear-gradient(180deg, rgb(7 19 48 / 92%), var(--p-fondo));
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 2px 0 12px rgb(2 8 22 / 20%);
+  font-family: 'Inter', system-ui, sans-serif;
+
+  scrollbar-color: rgb(255 255 255 / 16%) transparent;
+}
+
+html:root .sidebar::-webkit-scrollbar { width: 6px; }
+html:root .sidebar::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 16%);
+  border-radius: 3px;
+}
+
+/* =========================================================
+   1 · CADA SECCIÓN, UN CRISTAL FINO
+   Veladura blanca al 4 %, un filo al 9 % y el canto de arriba un
+   punto más claro, que es donde el vidrio recibe la luz. Sin sombra
+   caída: el cristal se apoya en la lámina, no flota sobre ella.
+   ========================================================= */
+html:root .sidebar .sidebar-section {
+  margin: 0 0 8px;
+  padding: 14px 12px 14px;
+  border: 1px solid var(--p-cristal-filo);
+  border-radius: var(--p-radio-cristal);
+  background: var(--p-cristal);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+}
+
+html:root .sidebar .sidebar-section:last-child { margin-bottom: 0; }
+
+/* Las dos últimas no son decisiones sino utilidades: el cristal se
+   retira y quedan sobre la lámina, para que el ojo se quede arriba */
+html:root .sidebar .sidebar-section.herramienta,
+html:root .sidebar .sidebar-section.meta {
+  border-color: transparent;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+html:root .sidebar .sidebar-section.herramienta {
+  padding: 6px 12px;
+  border-top-color: var(--p-filete);
+  border-radius: 0;
+}
+
+html:root .sidebar .sidebar-section.meta { padding: 10px 12px 4px; }
+
+/* =========================================================
+   2 · RÓTULOS
+   Las cuatro secciones que cambian el mapa van numeradas: el número
+   va en el acento, en cifras de ancho fijo y sin caja, para que las
+   cuatro columnas de texto arranquen a la misma altura.
+   ========================================================= */
+html:root .sidebar .section-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 3px;
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--p-texto);
+}
+
+html:root .sidebar .paso .section-label::before {
+  counter-increment: paso;
+  content: counter(paso, decimal-leading-zero);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--p-acento);
+}
+
+html:root .sidebar .section-sublabel {
+  margin: 0 0 12px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--p-texto-2);
+}
+
+/* La bajada se alinea con el rótulo, no con su número */
+html:root .sidebar .paso .section-sublabel { padding-left: 21px; }
+
+html:root .sidebar .meta .section-label {
+  font-size: 0.62rem;
+  color: var(--p-texto-3);
+  margin-bottom: 8px;
+}
+
+html:root .sidebar .group-sublabel {
+  margin: 12px 0 2px;
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--p-texto-3);
+}
+
+html:root .sidebar .group-sublabel:first-child { margin-top: 0; }
+
+/* =========================================================
+   3 · ESCENARIOS: UN SELECTOR DE DOS POSICIONES Y UN INTERRUPTOR
+   ========================================================= */
+html:root .sidebar .escenario-capsulas {
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--p-radio);
+}
+
+html:root .sidebar .capsula-fondo {
+  border-radius: var(--p-radio);
+  background: var(--p-hundido);
+  border: 1px solid var(--p-borde);
+  box-shadow: none;
+}
+
+html:root .sidebar .capsula {
+  min-height: 44px;
+  padding: 6px;
+  gap: 3px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--p-texto-2);
+  font-family: inherit;
+  box-shadow: none;
+}
+
+html:root .sidebar .capsula:hover {
+  background: var(--p-control-hov);
+  color: #fff;
+}
+
+html:root .sidebar .capsula.active {
+  background: var(--p-texto);
+  color: #0a1c48;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+}
+
+html:root .sidebar .capsula-cod {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La severidad se dice con una muestra cuadrada, como las de la
+   leyenda, en el azul del moderado y el ámbar del severo */
+html:root .sidebar .capsula-nombre {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--p-texto-3);
+}
+
+html:root .sidebar .capsula-nombre::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--p-moderado);
+}
+
+html:root .sidebar .capsula[data-value="ssp585"] .capsula-nombre::before {
+  background: var(--p-severo);
+}
+
+html:root .sidebar .capsula.active .capsula-nombre { color: #4a5a72; }
+html:root .sidebar .capsula.active[data-value="ssp245"] .capsula-nombre::before { background: #2a7fcc; }
+html:root .sidebar .capsula.active[data-value="ssp585"] .capsula-nombre::before { background: #c98712; }
+
+html:root .sidebar .escenario-capsulas.comparando .capsula { opacity: 0.5; }
+
+/* El interruptor: la fila entera se toca, y a la derecha el carril */
+html:root .sidebar .btn-comparar {
+  position: relative;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+  min-height: 42px;
+  padding: 8px 56px 8px 10px;
+  border: 1px solid var(--p-borde);
+  border-radius: var(--p-radio);
+  background: var(--p-control);
+  color: var(--p-texto);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 500;
+  text-align: left;
+  box-shadow: none;
+}
+
+html:root .sidebar .btn-comparar svg {
+  width: 16px;
+  height: 16px;
+  opacity: 1;
+  color: var(--p-texto-3);
+}
+
+html:root .sidebar .btn-comparar::before,
+html:root .sidebar .btn-comparar::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+/* Carril */
+html:root .sidebar .btn-comparar::before {
+  right: 10px;
+  width: 32px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 9px;
+  background: rgb(255 255 255 / 16%);
+}
+
+/* Botón del interruptor */
+html:root .sidebar .btn-comparar::after {
+  right: 26px;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: #dfe7f1;
+}
+
+html:root .sidebar .btn-comparar:hover:not(.blocked) {
+  background: var(--p-control-hov);
+  border-color: var(--p-borde-hov);
+  color: #fff;
+}
+
+html:root .sidebar .btn-comparar.active {
+  background: var(--p-velo);
+  border-color: var(--p-borde-sel);
+  color: #fff;
+  box-shadow: none;
+}
+
+html:root .sidebar .btn-comparar.active svg { color: var(--p-acento); }
+html:root .sidebar .btn-comparar.active::before { background: #3b8fe8; }
+
+html:root .sidebar .btn-comparar.active::after {
+  transform: translateX(14px);
+  background: #fff;
+}
+
+html:root .sidebar .btn-comparar.blocked { opacity: 0.4; }
+
+/* Avisos: el ámbar del sistema, en filete y no en bloque */
+html:root .sidebar .escenario-aviso,
+html:root .sidebar .panel-aviso {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-left: 2px solid var(--p-severo);
+  border-radius: 0;
+  background: rgb(230 167 64 / 8%);
+  color: #f0dcb4;
+  font-size: 0.66rem;
+  font-style: normal;
+  line-height: 1.45;
+}
+
+/* =========================================================
+   4 · LISTAS DE ELECCIÓN (capa de datos y referencia)
+   Una fila por opción: icono, nombre, unidad y, al final, el radio.
+   El icono va suelto, sin caja: la fila ya es la caja.
+   ========================================================= */
+html:root .sidebar .radio-group { gap: 4px; }
+
+html:root .sidebar .radio-card {
+  position: relative;
+  gap: 10px;
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 1px solid var(--p-borde);
+  border-radius: var(--p-radio);
+  background: var(--p-control);
+  box-shadow: none;
+}
+
+html:root .sidebar .radio-card:hover {
+  background: var(--p-control-hov);
+  border-color: var(--p-borde-hov);
+}
+
+html:root .sidebar .radio-card.active {
+  background: var(--p-velo);
+  border-color: var(--p-borde-sel);
+  box-shadow: inset 3px 0 0 var(--p-acento);
+}
+
+/* El radio, al final de la fila: un círculo que se llena con un punto */
+html:root .sidebar .radio-dot {
+  order: 3;
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  border: 1.5px solid rgb(255 255 255 / 32%);
+  background: transparent;
+  box-shadow: none;
+}
+
+html:root .sidebar .radio-card:hover .radio-dot { border-color: rgb(255 255 255 / 55%); }
+
+html:root .sidebar .radio-card.active .radio-dot {
+  border-color: var(--p-acento);
+  background: radial-gradient(circle, var(--p-acento) 0 3.5px, transparent 4px);
+  box-shadow: none;
+}
+
+html:root .sidebar .radio-icon,
+html:root .sidebar .ref-icon {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  transform: none;
+}
+
+html:root .sidebar .radio-icon svg { width: 24px; height: 24px; }
+html:root .sidebar .ref-icon svg   { width: 26px; height: 26px; }
+
+html:root .sidebar .radio-card:hover .radio-icon,
+html:root .sidebar .radio-card:hover .ref-icon,
+html:root .sidebar .radio-card.active .radio-icon,
+html:root .sidebar .radio-card.active .ref-icon {
+  background: none;
+  border: none;
+  transform: none;
+}
+
+html:root .sidebar .radio-title {
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--p-texto);
+}
+
+html:root .sidebar .radio-desc {
+  margin-top: 2px;
+  font-size: 0.66rem;
+  color: var(--p-texto-2);
+}
+
+html:root .sidebar .radio-card.active .radio-title { color: #fff; }
+html:root .sidebar .radio-card.active .radio-desc  { color: #cfe0f2; }
+
+/* El botón de ayuda, un círculo fino junto al nombre */
+html:root .sidebar .var-info-btn {
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  font-size: 0.54rem;
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 30%);
+  color: var(--p-texto-2);
+  vertical-align: 1px;
+}
+
+html:root .sidebar .var-info-btn:hover {
+  border-color: var(--p-acento);
+  color: #fff;
+}
+
+/* Los cuatro índices extremos: lista fina colgada de su tarjeta */
+html:root .sidebar .indice-panel {
+  gap: 2px;
+  margin: 6px 0 0 12px;
+  padding-left: 10px;
+  border-left: 1px solid rgb(255 255 255 / 14%);
+}
+
+html:root .sidebar .indice-op {
+  min-height: 34px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--p-radio);
+  background: transparent;
+  color: var(--p-texto-2);
+  font-family: inherit;
+  font-size: 0.72rem;
+  box-shadow: none;
+}
+
+html:root .sidebar .indice-op:hover {
+  background: var(--p-control-hov);
+  color: #fff;
+}
+
+html:root .sidebar .indice-op.active {
+  background: var(--p-velo);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--p-acento);
+}
+
+html:root .sidebar .indice-icono,
+html:root .sidebar .indice-op:hover .indice-icono,
+html:root .sidebar .indice-op.active .indice-icono {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+
+html:root .sidebar .indice-icono svg { width: 18px; height: 18px; }
+
+html:root .sidebar .indice-cod {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--p-texto-3);
+}
+
+html:root .sidebar .indice-op.active .indice-cod { color: var(--p-acento); }
+
+/* =========================================================
+   5 · PERÍODO: «ANUAL» MANDA, LAS ESTACIONES DEBAJO
+   El año completo ocupa la fila entera; las cuatro estaciones caben
+   juntas en la de abajo, con el icono encima del nombre. La elegida
+   se marca en el canto de abajo, como una pestaña.
+   ========================================================= */
+html:root .sidebar #seasonGroup {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+html:root .sidebar .btn-season {
+  flex-direction: column;
+  gap: 4px;
+  min-height: 54px;
+  padding: 8px 2px 7px;
+  border: 1px solid var(--p-borde);
+  border-radius: var(--p-radio);
+  background: var(--p-control);
+  color: var(--p-texto-2);
+  font-family: inherit;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+html:root .sidebar .btn-season svg {
+  width: 17px;
+  height: 17px;
+  opacity: 1;
+  color: var(--p-texto-3);
+}
+
+html:root .sidebar .btn-season[data-value="anual"] {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  gap: 8px;
+  min-height: 40px;
+  font-size: 0.74rem;
+}
+
+html:root .sidebar .btn-season[data-value="anual"] svg { width: 15px; height: 15px; }
+
+html:root .sidebar .btn-season:hover {
+  background: var(--p-control-hov);
+  border-color: var(--p-borde-hov);
+  color: #fff;
+}
+
+html:root .sidebar .btn-season.active {
+  background: var(--p-velo);
+  border-color: var(--p-borde-sel);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--p-acento);
+}
+
+html:root .sidebar .btn-season.active svg { color: var(--p-acento); }
+
+html:root .sidebar .btn-season.blocked { opacity: 0.32; }
+
+/* =========================================================
+   6 · COORDENADAS: UNA FILA QUE SE DESPLIEGA
+   ========================================================= */
+html:root .sidebar .coord-toggle {
+  width: 100%;
+  min-height: 36px;
+  gap: 8px;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-align: left;
+  color: var(--p-texto-2);
+}
+
+html:root .sidebar .coord-toggle:hover { color: #fff; }
+
+html:root .sidebar .coord-toggle > svg:first-child { color: var(--p-texto-3); }
+
+html:root .sidebar .coord-toggle-texto { flex: 1; }
+
+html:root .sidebar .coord-chevron { transition: transform 0.2s ease; }
+
+html:root .sidebar .coord-toggle[aria-expanded="true"] .coord-chevron {
+  transform: rotate(180deg);
+}
+
+html:root .sidebar .coord-panel {
+  margin-top: 6px;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--p-filete);
+}
+
+/* Latitud y longitud, lado a lado: son un par y se leen juntas */
+html:root .sidebar .coord-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+html:root .sidebar .input-group label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--p-texto-3);
+}
+
+html:root .sidebar .input-group input {
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--p-borde);
+  border-radius: var(--p-radio);
+  background: var(--p-hundido);
+  box-shadow: none;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+html:root .sidebar .input-group input:focus {
+  border-color: var(--p-acento);
+  background: rgb(2 8 22 / 42%);
+}
+
+html:root .sidebar .btn-buscar {
+  min-height: 38px;
+  border: none;
+  border-radius: var(--p-radio);
+  background: #0b6bb8;
+  box-shadow: none;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+html:root .sidebar .btn-buscar:hover { background: #0a5c9e; filter: none; }
+
+/* =========================================================
+   7 · EL PIE DEL PANEL: PERÍODO Y ENSAMBLE
+   ========================================================= */
+html:root .sidebar .periodo-badge {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--p-texto);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+html:root .sidebar .periodo-badge span { color: var(--p-texto-3); }
+
+html:root .sidebar .ref-period-note {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-style: normal;
+  font-size: 0.64rem;
+  line-height: 1.5;
+  color: var(--p-texto-2);
+}
+
+/* Cabecera del panel en teléfono */
+html:root .sidebar .sidebar-mobile-head {
+  border-bottom: none;
+  margin: 0 0 4px;
+  padding: 2px 4px 8px;
+}
+
+html:root .sidebar .sidebar-mobile-head span { color: var(--p-texto); }
+
+/* =========================================================
+   8 · TABLETA
+   El panel baja a 240 px: las estaciones vuelven a dos columnas con
+   el icono al lado, y el radio se retira —el canto ya dice cuál es—
+   para que los nombres largos no partan.
+   ========================================================= */
+@media (max-width: 1100px) and (min-width: 769px) {
+  html:root .sidebar { padding: 8px 8px 12px; }
+  html:root .sidebar .sidebar-section { padding: 12px 10px; }
+  html:root .sidebar .sidebar-section.herramienta { padding: 6px 10px; }
+  html:root .sidebar .paso .section-sublabel { padding-left: 0; }
+
+  html:root .sidebar #seasonGroup { grid-template-columns: 1fr 1fr; }
+  html:root .sidebar .btn-season {
+    flex-direction: row;
+    min-height: 38px;
+    font-size: 0.68rem;
+  }
+
+  html:root .sidebar .radio-dot { display: none; }
+}
+
+/* =========================================================
+   9 · TELÉFONO
+   El panel flota sobre el territorio con el velo debajo. Las áreas
+   táctiles conservan lo que la hoja base ya les daba.
+   ========================================================= */
+@media (max-width: 768px) {
+  /* Aquí el vidrio sí tiene el mapa detrás: el velo se abre un poco
+     y el territorio se adivina bajo los controles */
+  html:root .sidebar {
+    padding: 10px 10px calc(16px + env(safe-area-inset-bottom));
+    background: linear-gradient(180deg, rgb(7 19 48 / 84%), rgb(9 25 62 / 82%));
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    box-shadow: 6px 0 24px rgb(2 8 22 / 40%);
+  }
+
+  html:root .sidebar .radio-card  { min-height: 50px; }
+  html:root .sidebar .btn-season  { min-height: 58px; font-size: 0.66rem; }
+  html:root .sidebar .btn-season[data-value="anual"] { min-height: 44px; }
+  html:root .sidebar .btn-comparar { min-height: 46px; }
+  html:root .sidebar .capsula      { min-height: 48px; }
+  html:root .sidebar .coord-toggle { min-height: 42px; }
+  html:root .sidebar .input-group input { min-height: 44px; font-size: 1rem; }
+  html:root .sidebar .btn-buscar   { min-height: 46px; }
+}
+
+/* Sin ratón el fondo del hover se quedaría pegado tras tocar */
+@media (hover: none) {
+  html:root .sidebar .radio-card:hover:not(.active),
+  html:root .sidebar .btn-season:hover:not(.active),
+  html:root .sidebar .btn-comparar:hover:not(.active) {
+    background: var(--p-control);
+    border-color: var(--p-borde);
+  }
+
+  html:root .sidebar .capsula:hover:not(.active) { background: transparent; }
+}
+
+/* Si el navegador no sabe desenfocar, la lámina y los cristales se
+   quedan opacos para que el texto no pierda contraste */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html:root .sidebar { background: #0a1c48; }
+  html:root .sidebar .sidebar-section { background: rgb(255 255 255 / 5%); }
+}

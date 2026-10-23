@@ -10,13 +10,13 @@
 
 import {
   cargarValores, distritosComparados, distritosConValores, distritosDesdeValores, fetchGeoJSON, imcFilename, refFilename
-} from "./datos.js?v=17";
+} from "./datos.js?v=19";
 import {
-  ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, imcBarConfig, imcLabel, signo, unidadDe
-} from "./escalas.js?v=17";
+  ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, gradienteRepartido, imcBarConfig, imcLabel, signo, unidadDe
+} from "./escalas.js?v=19";
 import {
   posicionEnGrupo, puntoEnGeometria, puntoRepresentativo
-} from "./geometria.js?v=17";
+} from "./geometria.js?v=19";
 
 
 // ─── Estado de la aplicación ──────────────────────────────
@@ -1073,6 +1073,21 @@ function pintarFilete(clave, esImc, compara) {
                 : clave === "pr" ? PREC_COLORS
                 :                  TEMP_COLORS;
   document.documentElement.style.setProperty("--filete", gradienteDe(colores));
+  return colores;
+}
+
+// La cabecera y el pie no repiten la rampa: enseñan cómo se reparte el
+// país entre sus tramos. El barrido de entrada se reinicia alternando dos
+// clases con la misma animación —quitar y poner la misma no la relanza.
+let fileteBarrido = false;
+
+function pintarReparto(colores, pintados) {
+  const raiz = document.documentElement;
+  if (!pintados) { raiz.style.removeProperty("--filete-reparto"); return; }
+  raiz.style.setProperty("--filete-reparto", gradienteRepartido(colores, pintados));
+  fileteBarrido = !fileteBarrido;
+  raiz.classList.toggle("filete-a", fileteBarrido);
+  raiz.classList.toggle("filete-b", !fileteBarrido);
 }
 
 // ─── Cargar/refrescar la capa de datos ────────────────────
@@ -1109,7 +1124,10 @@ async function cargarDatos() {
   const clave   = state.indice || state.variable;
   const compara = comparaAhora();
 
-  pintarFilete(clave, esImc, compara);
+  const colores = pintarFilete(clave, esImc, compara);
+  const colorDe = feat => esImc   ? getImcColor(feat.properties.valor)
+                        : compara ? getBrechaColor(feat.properties.valor, clave)
+                        :           getClimateColor(feat.properties.valor, clave);
 
   const pedirDatos = esImc   ? () => cargarValores(imcFilename(state.imcTipo))
                                        .then(d => distritosDesdeValores(d))
@@ -1129,11 +1147,7 @@ async function cargarDatos() {
     const base = esImc ? ESTILO_IMC : compara ? ESTILO_BRECHA : ESTILO_CLIMA;
     const capa = L.geoJSON(data, {
       pane: "datos",
-      style: feat => Object.assign({
-        fillColor: esImc   ? getImcColor(feat.properties.valor)
-                 : compara ? getBrechaColor(feat.properties.valor, clave)
-                 :           getClimateColor(feat.properties.valor, clave),
-      }, base),
+      style: feat => Object.assign({ fillColor: colorDe(feat) }, base),
       onEachFeature: (feat, layer) => {
         layer.on({
           mouseover(e) {
@@ -1149,6 +1163,7 @@ async function cargarDatos() {
     }).addTo(map);
 
     if (esImc) imcLayer = capa; else climateLayer = capa;
+    pintarReparto(colores, data.features.map(colorDe));
     if (esImc) buildImcLegend();
     else if (compara) buildBrechaLegend(clave);
     else buildClimateLegend(clave);
@@ -1157,6 +1172,7 @@ async function cargarDatos() {
     if (generacion !== generacionDatos) return;
     cerrarInfo();
     console.warn("Capa de datos no disponible:", err.message);
+    pintarReparto(colores, null);
     document.getElementById("legendContent").innerHTML = "";
     document.getElementById("mapLegend").classList.add("empty");
   } finally {

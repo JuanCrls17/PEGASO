@@ -320,3 +320,30 @@ export function gradienteDe(colores) {
   const paradas = colores.map((c, i) => `${c} ${(i / ultimo * 100).toFixed(2)}%`);
   return `linear-gradient(90deg, ${paradas.join(", ")})`;
 }
+
+// El mismo filete, repartido: cada tramo ocupa el ancho de los distritos
+// que caen en él. La rampa dice qué significa cada color; el reparto dice
+// cuánto del país está pintado de ese color, y cambia con la variable, la
+// estación y el escenario. Los colores que no son de la rampa —el gris de
+// los distritos sin dato— no entran en la cuenta.
+export function gradienteRepartido(colores, pintados) {
+  const cuenta = new Map(colores.map(c => [c, 0]));
+  let total = 0;
+  for (const c of pintados) {
+    if (!cuenta.has(c)) continue;
+    cuenta.set(c, cuenta.get(c) + 1);
+    total++;
+  }
+  if (!total) return gradienteDe(colores);
+
+  let acumulado = 0;
+  const paradas = [];
+  for (const c of colores) {
+    const n = cuenta.get(c);
+    if (!n) continue;
+    const desde = acumulado / total * 100;
+    acumulado += n;
+    paradas.push(`${c} ${desde.toFixed(2)}% ${(acumulado / total * 100).toFixed(2)}%`);
+  }
+  return `linear-gradient(90deg, ${paradas.join(", ")})`;
+}
