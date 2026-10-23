@@ -10,13 +10,13 @@
 
 import {
   cargarValores, distritosComparados, distritosConValores, distritosDesdeValores, fetchGeoJSON, imcFilename, refFilename
-} from "./datos.js?v=20";
+} from "./datos.js?v=21";
 import {
   ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, gradienteRepartido, imcBarConfig, imcLabel, signo, unidadDe
-} from "./escalas.js?v=20";
+} from "./escalas.js?v=21";
 import {
   posicionEnGrupo, puntoEnGeometria, puntoRepresentativo
-} from "./geometria.js?v=20";
+} from "./geometria.js?v=21";
 
 
 // ─── Estado de la aplicación ──────────────────────────────
@@ -793,6 +793,13 @@ const PIN_SVG =
   'fill="#2f7fe0" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>' +
   '<circle cx="12" cy="11" r="3.7" fill="#ffffff"/></svg>';
 
+// El mismo indicador en pequeño, para cada lugar de la lista de sugerencias
+const PIN_MINI_SVG =
+  '<svg viewBox="0 0 24 34" width="11" height="15" aria-hidden="true">' +
+  '<path d="M12 1.6c5.2 0 9.4 4.2 9.4 9.4 0 6.9-9.4 21.4-9.4 21.4S2.6 17.9 2.6 11c0-5.2 4.2-9.4 9.4-9.4z" ' +
+  'fill="#2f7fe0" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>' +
+  '<circle cx="12" cy="11" r="3.7" fill="#ffffff"/></svg>';
+
 function marcarSeleccion(punto) {
   if (pinSeguimiento) { cancelAnimationFrame(pinSeguimiento); pinSeguimiento = null; }
   if (marcadorSeleccion) { map.removeLayer(marcadorSeleccion); marcadorSeleccion = null; }
@@ -1494,7 +1501,7 @@ placeInput.addEventListener("input", () => {
 
       if (!data.length) {
         showSuggestions(`<div class="place-suggestions-empty">
-          <div class="place-suggestions-empty-icon">🔍</div>
+          <div class="place-suggestions-empty-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></div>
           <div class="place-suggestions-empty-text">Sin resultados para "<strong>${escaparHTML(q)}</strong>"<br>Intenta con otro nombre</div>
         </div>`);
         return;
@@ -1507,7 +1514,7 @@ placeInput.addEventListener("input", () => {
         return `<div class="place-suggestion-item"
                   data-lat="${parseFloat(item.lat)}" data-lon="${parseFloat(item.lon)}"
                   data-name="${escaparHTML(name)}">
-          <div class="place-suggestion-pin-wrap">📍</div>
+          <div class="place-suggestion-pin-wrap">${PIN_MINI_SVG}</div>
           <div>
             <div class="place-suggestion-name">${escaparHTML(name)}</div>
             <div class="place-suggestion-detail">${escaparHTML(detail)}</div>
