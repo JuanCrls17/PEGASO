@@ -10,13 +10,13 @@
 
 import {
   cargarValores, distritosComparados, distritosConValores, distritosDesdeValores, fetchGeoJSON, imcFilename, refFilename
-} from "./datos.js?v=23";
+} from "./datos.js?v=24";
 import {
   ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, gradienteRepartido, imcBarConfig, imcLabel, signo, unidadDe
-} from "./escalas.js?v=23";
+} from "./escalas.js?v=24";
 import {
   posicionEnGrupo, puntoEnGeometria, puntoRepresentativo, verticeNorte
-} from "./geometria.js?v=23";
+} from "./geometria.js?v=24";
 
 
 // ─── Estado de la aplicación ──────────────────────────────
@@ -1875,6 +1875,23 @@ function mostrarFlotantes() {
 map.on("movestart zoomstart", ocultarFlotantes);
 // dragend llega al soltar el dedo; moveend esperaría a que acabe la inercia
 map.on("dragend moveend zoomend", mostrarFlotantes);
+
+// ─── El vidrio se aquieta mientras el mapa se mueve ───────
+// El desenfoque de las piezas flotantes se recalcula en cada fotograma en
+// que cambia lo que tienen detrás, y medido es lo que más frena el mapa:
+// sin él, arrastrar y hacer zoom van al doble de fotogramas. Mientras el
+// mapa se mueve las piezas pasan a un blanco casi opaco, que en movimiento
+// apenas se distingue, y el vidrio vuelve al detenerse. La espera evita
+// que parpadee entre un gesto y el siguiente.
+let vidrioEnPausa = null;
+map.on("movestart zoomstart", () => {
+  clearTimeout(vidrioEnPausa);
+  document.body.classList.add("mapa-moviendo");
+});
+map.on("moveend zoomend", () => {
+  clearTimeout(vidrioEnPausa);
+  vidrioEnPausa = setTimeout(() => document.body.classList.remove("mapa-moviendo"), 160);
+});
 
 // ─── Ajustes al cambiar entre móvil y escritorio ──────────
 function aplicarModoViewport() {

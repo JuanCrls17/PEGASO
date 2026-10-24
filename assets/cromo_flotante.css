@@ -25,7 +25,7 @@
   --vidrio-filo:   rgb(255 255 255 / 65%);
   --vidrio-anillo: rgb(10 28 72 / 8%);
   --vidrio-sombra: 0 10px 34px rgb(10 28 72 / 13%), 0 2px 6px rgb(10 28 72 / 6%);
-  --vidrio-blur:   blur(24px) saturate(180%);
+  --vidrio-blur:   blur(16px) saturate(170%);
 }
 
 /* ── El vidrio, en todas las pantallas ─────────────────── */
@@ -371,6 +371,42 @@ html:root body .place-searching { color: var(--blue); }
   }
 
   html:root body .msf-collapse:active { background: rgb(10 28 72 / 14%); }
+}
+
+/* =========================================================
+   EL VIDRIO SE AQUIETA MIENTRAS EL MAPA SE MUEVE
+   app.js pone «mapa-moviendo» en el body entre que el mapa empieza a
+   moverse y poco después de pararse. Mientras tanto ninguna pieza
+   desenfoca: es lo que más frena el arrastre y el zoom, porque cada
+   fotograma obliga a desenfocar de nuevo lo que hay detrás. El blanco
+   sube para que el texto siga igual de legible sin el desenfoque.
+   ========================================================= */
+/* El cambio de blanco se funde. Solo en pantalla amplia: en teléfono el
+   panel, el buscador y la leyenda ya tienen sus propias transiciones de
+   entrada y salida, y declarar esta se las quitaría */
+@media (min-width: 769px) {
+  html:root body .navbar,
+  html:root body .footer,
+  html:root body .sidebar,
+  html:root body .map-legend,
+  html:root body .map-search-float,
+  html:root body .map-info-panel,
+  html:root body .info-popup .leaflet-popup-content-wrapper {
+    transition: background-color 0.2s ease;
+  }
+}
+
+html:root body.mapa-moviendo .navbar,
+html:root body.mapa-moviendo .footer,
+html:root body.mapa-moviendo .sidebar,
+html:root body.mapa-moviendo .map-legend,
+html:root body.mapa-moviendo .map-search-float,
+html:root body.mapa-moviendo .map-info-panel,
+html:root body.mapa-moviendo .map-zoom-ctrl button:not(.active),
+html:root body.mapa-moviendo .info-popup .leaflet-popup-content-wrapper {
+  background: rgb(247 250 253 / 92%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
