@@ -10,13 +10,13 @@
 
 import {
   cargarValores, distritosComparados, distritosConValores, distritosDesdeValores, fetchGeoJSON, imcFilename, refFilename
-} from "./datos.js?v=22";
+} from "./datos.js?v=23";
 import {
   ESCENARIOS, IMC_COLORS, IMC_COLORS_TEXTO, IMC_DESC, IMC_ORDEN, INDICES_EXTREMOS, NOMBRE_REFERENCIA, NOMBRE_VARIABLE, PREC_BINS, PREC_COLORS, TEMP_BINS, TEMP_COLORS, cifraBrecha, cifraDe, climateBarConfig, colorTextoBrecha, escalaDeBrecha, getBrechaColor, getClimateColor, getImcColor, gradienteDe, gradienteRepartido, imcBarConfig, imcLabel, signo, unidadDe
-} from "./escalas.js?v=22";
+} from "./escalas.js?v=23";
 import {
-  posicionEnGrupo, puntoEnGeometria, puntoRepresentativo
-} from "./geometria.js?v=22";
+  posicionEnGrupo, puntoEnGeometria, puntoRepresentativo, verticeNorte
+} from "./geometria.js?v=23";
 
 
 // ─── Estado de la aplicación ──────────────────────────────
@@ -927,11 +927,6 @@ function mostrarInfo(props) {
                    <div class="info-popup-body">${html}</div>`)
       .openOn(map);
     asegurarFichaVisible();
-    setTimeout(() => {
-      const globo = document.querySelector(".info-popup");
-      if (!globo) return;
-      evitarChoqueConLeyenda(globo);
-    }, 60);
     return;
   }
 
@@ -970,12 +965,22 @@ function mostrarInfo(props) {
 }
 
 // La ficha nunca queda bajo una pieza flotante. Se mide el globo entero
-// —cuerpo y punta— contra el hueco que dejan la cabecera, el panel, el pie
-// y los botones de zoom, y el mapa se desplaza lo justo para que quepa. El
-// límite de navegación se suelta durante ese desplazamiento: con el mapa
+// —cuerpo y punta— contra el marco que dejan la cabecera, el panel y el
+// pie, y contra lo que flota dentro de ese marco: el buscador, el zoom y la
+// leyenda. Si choca, el mapa se desplaza lo justo: de las salidas posibles
+// se toma la más corta que no lo saque del marco.
+// El límite de navegación se suelta durante ese desplazamiento: con el mapa
 // alejado, bajar el globo obliga a mirar más al norte de lo que permite, y
-// es justo ahí donde quedaba tapado. Al terminar se vuelve a poner.
+// era justo ahí donde quedaba tapado. Al terminar se vuelve a poner.
 const HOLGURA_FICHA = 14;
+
+function obstaculosFlotantes() {
+  return ["mapSearchFloat", "zoomCtrl", "mapLegend"]
+    .map(id => document.getElementById(id))
+    .filter(el => el && el.offsetParent !== null &&
+                  getComputedStyle(el).visibility !== "hidden")
+    .map(el => el.getBoundingClientRect());
+}
 
 function asegurarFichaVisible() {
   const globo = infoPopup && infoPopup.getElement();
@@ -985,31 +990,46 @@ function asegurarFichaVisible() {
   const g = globo.getBoundingClientRect();
   const c = mapContainer.getBoundingClientRect();
   const cubierta = zonaCubierta();
-
-  let der = c.right - HOLGURA_FICHA;
-  const zoom = document.getElementById("zoomCtrl");
-  if (zoom && zoom.offsetParent !== null) der = zoom.getBoundingClientRect().left - HOLGURA_FICHA;
-
-  const libre = {
-    arriba: c.top + cubierta.arriba + HOLGURA_FICHA,
-    abajo:  c.bottom - cubierta.abajo - HOLGURA_FICHA,
-    izq:    c.left + cubierta.izq + HOLGURA_FICHA,
-    der,
+  const m = HOLGURA_FICHA;
+  const marco = {
+    top:    c.top + cubierta.arriba + m,
+    bottom: c.bottom - cubierta.abajo - m,
+    left:   c.left + cubierta.izq + m,
+    right:  c.right - m,
   };
 
-  // Si no cabe de alto, manda la cabecera: se lee de arriba abajo
-  let dy = 0;
-  if (g.top < libre.arriba) dy = g.top - libre.arriba;
-  else if (g.bottom > libre.abajo) dy = Math.max(g.bottom - libre.abajo, g.top - libre.arriba);
+  // Primero dentro del marco; si no cabe de alto, manda la cabecera
+  let dx = 0, dy = 0;
+  if (g.top < marco.top) dy = marco.top - g.top;
+  else if (g.bottom > marco.bottom) dy = Math.min(marco.bottom - g.bottom, marco.top - g.top);
+  if (g.left < marco.left) dx = marco.left - g.left;
+  else if (g.right > marco.right) dx = Math.min(marco.right - g.right, marco.left - g.left);
 
-  let dx = 0;
-  if (g.left < libre.izq) dx = g.left - libre.izq;
-  else if (g.right > libre.der) dx = Math.max(g.right - libre.der, g.left - libre.izq);
+  // Después, fuera de cada flotante que pise
+  const cabe = (x, y) => g.top + y >= marco.top - 0.5 && g.bottom + y <= marco.bottom + 0.5 &&
+                         g.left + x >= marco.left - 0.5 && g.right + x <= marco.right + 0.5;
+  for (let vuelta = 0; vuelta < 3; vuelta++) {
+    const pisado = obstaculosFlotantes().find(o =>
+      g.left + dx < o.right + m && g.right + dx > o.left - m &&
+      g.top + dy < o.bottom + m && g.bottom + dy > o.top - m);
+    if (!pisado) break;
+    const salidas = [
+      [pisado.right + m - (g.left + dx), 0],
+      [pisado.left - m - (g.right + dx), 0],
+      [0, pisado.bottom + m - (g.top + dy)],
+      [0, pisado.top - m - (g.bottom + dy)],
+    ].filter(([x, y]) => cabe(dx + x, dy + y))
+     .sort((u, v) => Math.hypot(...u) - Math.hypot(...v));
+    if (!salidas.length) break;
+    dx += salidas[0][0];
+    dy += salidas[0][1];
+  }
 
   if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+  // Desplazar el mapa mueve el globo en sentido contrario
   map.setMaxBounds(null);
   map.once("moveend", aplicarLimitesNavegacion);
-  map.panBy([Math.round(dx), Math.round(dy)], { animate: true, duration: 0.35 });
+  map.panBy([-Math.round(dx), -Math.round(dy)], { animate: true, duration: 0.3 });
 }
 
 // Ante un solape, la leyenda se pliega: la información nunca queda tapada.
@@ -1647,41 +1667,64 @@ window.addEventListener("scroll", removeVarTooltip, true);
 
 // ─── Resaltar distrito desde el buscador ──────────────────
 // Si el punto no cae en ningún distrito se toma el de centro más próximo.
-// Llegar a un lugar buscado es llegar a su distrito: el mapa vuela hasta
-// encuadrarlo entero en el hueco que deja el cromo, y en pantalla amplia
-// le reserva encima el sitio de la ficha, que se abre al aterrizar —abrirla
-// en pleno vuelo la colocaba con posiciones que ya no eran las del mapa—.
-// En teléfono la ficha es una hoja que sube desde abajo: el sitio se
-// reserva abajo.
-let vueloPendiente = null;
+// Llegar a un lugar buscado es llegar a su distrito, y sin ceremonia: el
+// mapa encuadra el distrito entero con la animación corta de siempre —el
+// vuelo con alejamiento tardaba casi un segundo y repintaba los 1891
+// distritos en cada fotograma— y la ficha se abre al terminar.
+// En pantalla amplia la ficha se apoya en el borde norte del distrito y se
+// le reserva el sitio encima, así que no tapa el territorio que describe;
+// el punto buscado queda marcado dentro. En teléfono la ficha es una hoja
+// que sube desde abajo, y el sitio se reserva abajo.
+const ENCUADRE = {
+  zoomMax:    12,    // un distrito pequeño no se acerca más que esto
+  fichaAlto:  380,   // lo que mide la ficha en pantalla amplia, punta incluida
+  fichaTel:   0.42,  // fracción del alto que ocupa la hoja en teléfono
+  margen:     32,
+};
 
-function volarAlDistrito(unidad, punto) {
-  if (vueloPendiente) { map.off("moveend", vueloPendiente); vueloPendiente = null; }
+let consultaPendiente = null;
+
+function irAlDistrito(unidad, punto) {
+  if (consultaPendiente) { map.off("moveend", consultaPendiente); consultaPendiente = null; }
   cerrarInfo();
 
-  const cubierta = zonaCubierta();
-  const ancho = mapContainer.clientWidth  - cubierta.izq;
-  const alto  = mapContainer.clientHeight - cubierta.arriba - cubierta.abajo;
   const telefono = window.innerWidth <= 768;
-  const ficha = Math.round(alto * (telefono ? 0.42 : 0.46));
-  const lado  = Math.round(Math.min(64, ancho * 0.08));
+  const cubierta = zonaCubierta();
+  const alto = mapContainer.clientHeight - cubierta.arriba - cubierta.abajo;
+  const m = ENCUADRE.margen;
 
-  const arribaIzq = telefono
-    ? L.point(16, 16)
-    : L.point(cubierta.izq + lado, cubierta.arriba + Math.min(ficha, 400));
-  const abajoDer = telefono
-    ? L.point(16, cubierta.abajo + ficha)
-    : L.point(lado + 48, cubierta.abajo + 28);
+  let arribaIzq, abajoDer, ancla = punto;
+  if (telefono) {
+    arribaIzq = L.point(16, 16);
+    abajoDer  = L.point(16, Math.round(alto * ENCUADRE.fichaTel));
+  } else {
+    // Si la ficha no deja al menos un tercio del alto para el distrito, se
+    // le reserva menos: mejor que pise un borde a que el distrito sea un punto
+    const ficha = Math.min(ENCUADRE.fichaAlto, Math.round(alto * 0.62));
+    arribaIzq = L.point(cubierta.izq + m, cubierta.arriba + ficha);
+    abajoDer  = L.point(m + 56, cubierta.abajo + m);
+    const norte = verticeNorte(unidad.feature.geometry);
+    if (norte) ancla = L.latLng(norte.lat, norte.lng);
+  }
 
-  vueloPendiente = () => { vueloPendiente = null; consultarUnidad(unidad, punto); };
+  let hecho = false;
+  consultaPendiente = () => {
+    if (hecho) return;
+    hecho = true;
+    consultaPendiente = null;
+    aplicarLimitesNavegacion();
+    consultarUnidad(unidad, ancla);
+  };
   map.setMaxBounds(null);
-  map.once("moveend", vueloPendiente);
-  map.flyToBounds(unidad.getBounds(), {
+  map.once("moveend", consultaPendiente);
+  map.fitBounds(unidad.getBounds(), {
     paddingTopLeft: arribaIzq,
     paddingBottomRight: abajoDer,
-    maxZoom: 13,
-    duration: 0.9,
+    maxZoom: ENCUADRE.zoomMax,
+    animate: true,
   });
+  // Si el distrito ya estaba encuadrado no hay movimiento ni moveend
+  setTimeout(() => { if (consultaPendiente && !hecho) { map.off("moveend", consultaPendiente); consultaPendiente(); } }, 450);
 }
 
 function highlightDistrictAt(lat, lon) {
@@ -1699,7 +1742,7 @@ function highlightDistrictAt(lat, lon) {
       if (d < menor) { menor = d; unidad = l; }
     });
   }
-  if (unidad) volarAlDistrito(unidad, punto);
+  if (unidad) irAlDistrito(unidad, punto);
   else map.setView(punto, 11, { animate: true });
 }
 

@@ -105,3 +105,26 @@ export function posicionEnGrupo(valor, ordenados, descendente) {
   }
   return { delante, detras };
 }
+
+// El vértice más al norte del contorno exterior: el borde de arriba del
+// territorio, donde se apoya la punta de una ficha que no debe taparlo.
+// Si hay varios a la misma latitud, el más cercano al centro en longitud.
+export function verticeNorte(geom) {
+  const partes = geom.type === "Polygon" ? [geom.coordinates]
+               : geom.type === "MultiPolygon" ? geom.coordinates
+               : [];
+  let norte = null;
+  let lonMin = Infinity, lonMax = -Infinity;
+  for (const p of partes) for (const [lon] of p[0] || []) {
+    if (lon < lonMin) lonMin = lon;
+    if (lon > lonMax) lonMax = lon;
+  }
+  const centro = (lonMin + lonMax) / 2;
+  for (const p of partes) for (const [lon, lat] of p[0] || []) {
+    if (!norte || lat > norte.lat ||
+        (lat === norte.lat && Math.abs(lon - centro) < Math.abs(norte.lng - centro))) {
+      norte = { lat, lng: lon };
+    }
+  }
+  return norte;
+}

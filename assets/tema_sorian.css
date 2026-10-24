@@ -223,30 +223,32 @@ html:root .navbar::before { bottom: 0; }
 html:root .footer::before { top: 0; }
 
 /* En cuanto el mapa termina de pintar, app.js escribe el reparto: cada
-   tramo ocupa el ancho de los distritos que caen en él. Va repetido y al
-   doble de ancho, y se desliza un ancho entero cada 40 s: la franja fluye
-   sin costura y el reparto se sigue leyendo. Un degradado no interpola
-   entre dos repartos, así que el nuevo entra además barriendo de
-   izquierda a derecha. Dos clases con la misma animación: alternarlas es
-   lo que la relanza. */
+   tramo ocupa el ancho de los distritos que caen en él. Va repetido sobre
+   una franja del doble de ancho, que se desplaza un ancho entero cada
+   40 s: fluye sin costura y el reparto se sigue leyendo.
+   Se mueve con transform y no con background-position: lo segundo
+   repinta la franja en cada fotograma, y como va sobre vidrio, obliga a
+   recalcular el desenfoque de la cabecera y del pie sin descanso. El
+   reparto nuevo entra fundiéndose, por lo mismo. Dos clases con la misma
+   animación: alternarlas es lo que la relanza. */
 html:root.filete-a .navbar::before,
 html:root.filete-a .footer::before,
 html:root.filete-b .navbar::before,
 html:root.filete-b .footer::before {
+  right: auto;
+  width: 200%;
   background: var(--filete-flujo, var(--filete));
-  background-size: 200% 100%;
+  will-change: transform;
 }
 
 html:root.filete-a .navbar::before,
 html:root.filete-a .footer::before {
-  animation: fileteBarreA 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-             fileteFluye 40s linear infinite;
+  animation: fileteEntraA 0.6s ease-out, fileteFluye 40s linear infinite;
 }
 
 html:root.filete-b .navbar::before,
 html:root.filete-b .footer::before {
-  animation: fileteBarreB 0.7s cubic-bezier(0.22, 1, 0.36, 1),
-             fileteFluye 40s linear infinite;
+  animation: fileteEntraB 0.6s ease-out, fileteFluye 40s linear infinite;
 }
 
 /* El pie fluye al revés que la cabecera: las dos franjas enmarcan el
@@ -254,9 +256,9 @@ html:root.filete-b .footer::before {
 html:root.filete-a .footer::before,
 html:root.filete-b .footer::before { animation-direction: normal, reverse; }
 
-@keyframes fileteBarreA { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes fileteBarreB { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes fileteFluye  { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+@keyframes fileteEntraA { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fileteEntraB { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fileteFluye  { from { transform: translateX(-50%); } to { transform: translateX(0); } }
 
 @media (prefers-reduced-motion: reduce) {
   html:root.filete-a .navbar::before, html:root.filete-a .footer::before,
